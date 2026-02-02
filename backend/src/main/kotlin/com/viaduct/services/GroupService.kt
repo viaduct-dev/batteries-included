@@ -108,4 +108,11 @@ open class GroupService(
     ): Boolean {
         return authenticatedClient.removeGroupMember(groupId, userId)
     }
+
+    /**
+     * Count the number of members in a group.
+     */
+    suspend fun getGroupMemberCount(authenticatedClient: AuthenticatedSupabaseClient, groupId: String): Int {
+        return authenticatedClient.getGroupMembers(groupId).size
+    }
 }

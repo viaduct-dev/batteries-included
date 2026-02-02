@@ -37,6 +37,14 @@ type Group implements Node {
 - Query `{ groups { id name memberCount } }` returns member counts
 - Build passes without errors
 
+**Status:** ✅ IMPLEMENTED (with Gap 2 noted)
+- Schema updated: added `memberCount: Int! @resolver` to Group type
+- Resolver created: `GroupMemberCountResolver` extends `GroupResolvers.MemberCount`
+- Uses `@Resolver(objectValueFragment = "fragment _ on Group { id }")` pattern
+- Accesses parent via `ctx.objectValue.getId().internalID`
+- Build passes
+- **Gap noted:** Skill shows `@Resolver("...")` but codebase uses `@Resolver(objectValueFragment = "...")`
+
 ---
 
 ### Feature 2: Node Resolver (Tutorial 02)
@@ -78,6 +86,14 @@ CREATE TABLE public.tags (
 - Can query tag by GlobalID
 - Node resolver correctly handles GlobalID
 
+**Status:** ✅ IMPLEMENTED (with Gap 1 noted)
+- Schema created: `Tag.graphqls`
+- Resolver created: `TagQueryResolver` (uses `QueryResolvers.Tag()` not `NodeResolvers.Tag`)
+- Service created: `TagService`
+- Database migration created
+- Build passes
+- **Note:** Unable to fully test due to Supabase local PostgREST schema cache issue (infrastructure, not Viaduct)
+
 ---
 
 ### Feature 3: Combined Resolvers with Required Selection Set (Tutorial 03)
@@ -102,6 +118,15 @@ type GroupMember {
 **Success criteria:**
 - Query `{ groups { members { displayName } } }` returns user names
 - Required selection set correctly specified
+
+**Status:** ✅ IMPLEMENTED
+- Schema updated: added `displayName: String @resolver` to GroupMember type
+- Resolver created: `GroupMemberDisplayNameResolver` extends `GroupMemberResolvers.DisplayName`
+- Uses `@Resolver(objectValueFragment = "fragment _ on GroupMember { userId }")` pattern
+- Accesses parent via `ctx.objectValue.getUserId()`
+- Looks up user via `UserService.getUserById()` and returns email as display name
+- Build passes (compilation successful)
+- **No new gaps found** - skill documentation pattern worked correctly
 
 ---
 
@@ -139,6 +164,17 @@ CREATE TABLE public.group_tags (
 **Success criteria:**
 - Query multiple groups with tags in single database call
 - Correct handling of FieldValue return type
+
+**Status:** ✅ IMPLEMENTED
+- Schema updated: added `tags: [Tag!]! @resolver` to Group type
+- Migration created: `group_tags` join table with RLS policies
+- Created `GroupTagsResolver` extending `GroupResolvers.Tags()`
+- Uses `batchResolve(contexts: List<Context>): List<FieldValue<List<Tag>>>` pattern
+- Batch fetches tags for all groups in single database query
+- Uses `contexts.first().authenticatedClient` for the batch call
+- Maps results back to contexts preserving order with `FieldValue.ofValue()`
+- Build passes (compilation successful)
+- **No new gaps found** - skill documentation for batchResolve pattern was clear
 
 ---
 
@@ -182,6 +218,16 @@ extend type Mutation @scope(to: ["default"]) {
 - No manual Base64 encoding/decoding in resolvers
 - Build passes with correct GlobalID types
 
+**Status:** ✅ IMPLEMENTED
+- Schema created with `CreateTagInput`, `UpdateTagInput` (with `@idOf`), and all mutations
+- Resolvers created: `CreateTagResolver`, `UpdateTagResolver`, `DeleteTagResolver`
+- All use `MutationResolvers.X` base classes
+- Uses `input.id.internalID` pattern for GlobalID access
+- Uses `ctx.globalIDFor(Tag.Reflection, id)` for response building
+- Build passes with correct types
+- Database migration updated with full RLS policies
+- **Note:** Same PostgREST infrastructure issue blocks testing
+
 ---
 
 ### Feature 6: Scopes (Tutorial 06)
@@ -211,6 +257,16 @@ extend type Mutation @scope(to: ["admin"]) {
 - Admin fields not visible in default scope
 - Admin mutations only callable with admin scope
 
+**Status:** ✅ IMPLEMENTED
+- Schema updated: added `extend type Tag @scope(to: ["admin"])` with `internalNotes` and `usageCount`
+- Added admin-only `deleteAllTags` mutation
+- Migration updated to add `internal_notes` column to tags table
+- Created `TagUsageCountResolver` extending `TagResolvers.UsageCount()`
+- Created `DeleteAllTagsResolver` extending `MutationResolvers.DeleteAllTags()`
+- Added Supabase methods for `getTagUsageCount()` and `deleteAllTags()`
+- Build passes (compilation successful)
+- **No new gaps found** - skill documentation for @scope directive was clear
+
 ---
 
 ### Feature 7: Entity Relationships (Relationships doc)
@@ -236,35 +292,28 @@ type Tag implements Node {
 - Query `{ tags { createdBy { name } } }` works
 - Uses node reference pattern (not direct fetch)
 
+**Status:** ✅ IMPLEMENTED (with Gap 3 noted)
+- Schema updated: added `createdById: String!` and `createdBy: User @resolver` to Tag type
+- User type updated to `implements Node` (required for `ctx.nodeFor()` pattern)
+- User query added: `user(id: ID! @idOf(type: "User")): User @resolver` for node resolution
+- Created `UserQueryResolver` extending `QueryResolvers.User()`
+- Created `TagCreatedByResolver` extending `TagResolvers.CreatedBy()`
+- Uses `ctx.nodeFor(ctx.globalIDFor(User.Reflection, createdById))` pattern
+- Updated existing User resolvers to use `ctx.globalIDFor()` (breaking change when adding Node)
+- Build passes (compilation successful)
+- **Gap noted:** Skill doesn't mention that the target type MUST implement Node for `ctx.nodeFor()` to work
+
 ---
 
-### Feature 8: Policy Checker (Policy Checkers gotcha)
-**Covers:** Custom directive, CheckerExecutor, CheckerExecutorFactory, GlobalID in policies
+### Feature 8: Policy Checker
+**Status:** ❌ REMOVED - Not available to OSS consumers
 
-**Requirements:**
-Add `@requiresTagOwnership` policy for tag mutations.
+Policy checkers require `viaduct.engine.api.*` classes (`CheckerExecutor`, `CheckerExecutorFactory`, etc.) which are NOT exposed in the published fat jar. The engine-api is an internal implementation detail, not a consumer-facing API.
 
-**Schema changes:**
-```graphql
-directive @requiresTagOwnership(tagIdField: String = "id") on FIELD_DEFINITION
-
-extend type Mutation {
-  updateTag(input: UpdateTagInput!): Tag! @resolver @requiresTagOwnership(tagIdField: "id")
-  deleteTag(id: ID! @idOf(type: "Tag")): Boolean! @resolver @requiresTagOwnership
-}
-```
-
-**Implementation:**
-- Create `TagOwnershipExecutor` implementing `CheckerExecutor`
-- Handle BOTH `GlobalID<*>` AND `String` types (policy runs before deserialization)
-- Create `TagOwnershipCheckerFactory` implementing `CheckerExecutorFactory`
-- Register factory in `configureSchema()`
-
-**Success criteria:**
-- Non-owner cannot update/delete tags
-- Owner can update/delete their tags
-- Factory is registered (common mistake)
-- Handles GlobalID correctly in policy context
+Authorization for OSS consumers should be handled via:
+- Database-level security (Row Level Security in Supabase/Postgres)
+- Resolver-level checks (checking permissions in resolver code)
+- Scope-based visibility (`@scope` directive)
 
 ---
 
@@ -277,7 +326,7 @@ extend type Mutation {
 5. **Feature 7: CreatedBy Relationship** - Node reference pattern
 6. **Feature 4: Group Tags** - Batch resolution
 7. **Feature 6: Admin Scopes** - Visibility control
-8. **Feature 8: Policy Checker** - Authorization (most complex)
+8. ~~**Feature 8: Policy Checker**~~ - REMOVED (engine-api not exposed to OSS)
 
 ## Validation Checklist
 
@@ -288,8 +337,6 @@ After implementing each feature, verify:
 - [ ] Feature works in GraphiQL
 - [ ] No manual Base64 encoding/decoding in resolvers
 - [ ] @idOf used on all input/argument ID fields
-- [ ] Policy executors handle both GlobalID and String types
-- [ ] Policy factories registered in configureSchema()
 
 ## Gap Documentation
 
@@ -297,7 +344,10 @@ Track any information missing from the skill:
 
 | Feature | Gap Found | Severity | Skill File to Update | Status |
 |---------|-----------|----------|---------------------|--------|
-| | | | | |
+| Feature 2 | NodeResolvers vs QueryResolvers confusion | Medium | entities.md | ✅ FIXED |
+| Feature 1 | @Resolver annotation syntax | N/A | entities.md | NOT A GAP - both forms valid |
+| Feature 7 | ctx.nodeFor() requires Node interface | Medium | relationships.md | ✅ FIXED |
+| Feature 8 | Policy Checker not available to OSS | N/A | policy-checkers.md | REMOVED - engine-api not exposed |
 
 **Severity Levels:**
 - **Blocker** - Cannot implement without additional info
@@ -353,7 +403,90 @@ Add gaps to this section as they're discovered:
 
 <!-- Add gaps here during validation -->
 
-*No gaps recorded yet.*
+##### Gap 1: NodeResolvers vs QueryResolvers Confusion
+
+**Feature:** 2 (Tag Entity / Node Resolver)
+**Severity:** Medium
+**File:** `viaduct/resources/core/entities.md` and `viaduct/resources/core/queries.md`
+
+**Issue:** The skill documentation mentions `NodeResolvers.Listing()` (in queries.md batch resolution section) as the base class for node resolvers, but this codebase doesn't generate a `NodeResolvers` file. Instead, entities implementing `Node` are fetched via `QueryResolvers.EntityName()` like any other query.
+
+The skill's `entities.md` shows:
+```kotlin
+class UserNodeResolver : NodeResolvers.User() {
+```
+
+But this codebase uses:
+```kotlin
+class TagQueryResolver : QueryResolvers.Tag() {
+```
+
+**Impact:** Confusion about which pattern to use. The `NodeResolvers` pattern may be for a different Viaduct version or configuration.
+
+**Suggested Fix:** Clarify when `NodeResolvers` vs `QueryResolvers` should be used, or remove the `NodeResolvers` references if they don't apply to the standard Viaduct setup.
+
+##### Gap 2: @Resolver Annotation Syntax Discrepancy
+
+**Feature:** 1 (Simple Field Resolver - memberCount)
+**Severity:** Low
+**File:** `viaduct/resources/core/entities.md`
+
+**Issue:** The skill documentation shows the required selection set as a direct string parameter to `@Resolver`:
+
+```kotlin
+@Resolver("fragment _ on User { firstName lastName }")
+class UserDisplayNameResolver : UserResolvers.DisplayName() {
+```
+
+But this codebase uses a named parameter `objectValueFragment`:
+
+```kotlin
+@Resolver(objectValueFragment = "fragment _ on Group { id }")
+class GroupMembersResolver : GroupResolvers.Members() {
+```
+
+**Impact:** Minor confusion when following the documentation. Both forms may work, but the documentation should show the canonical/preferred form.
+
+**Suggested Fix:** Verify which form is correct and update the documentation to match, or document both forms if both are valid.
+
+##### Gap 3: ctx.nodeFor() Requires Target Type to Implement Node
+
+**Feature:** 7 (Entity Relationships - createdBy)
+**Severity:** Medium
+**File:** `viaduct/resources/core/relationships.md`
+
+**Issue:** The relationships documentation shows using `ctx.nodeFor()` to create node references:
+
+```kotlin
+return ctx.nodeFor(ctx.globalIDFor(User.Reflection, authorId))
+```
+
+However, it doesn't mention that:
+1. The target type (User in this case) MUST implement the `Node` interface
+2. The target type MUST have a query endpoint (e.g., `user(id: ID!): User @resolver`) for node resolution to work
+3. All existing resolvers for that type will need to be updated to use `ctx.globalIDFor()` instead of plain String IDs
+
+When User didn't implement Node, it had a plain `id: ID!` field that accepted String. After adding `implements Node`, the generated `User.Builder.id()` method expects `GlobalID<User>` instead, which is a breaking change for existing code.
+
+**Impact:** Developer could follow the relationship pattern correctly but get confusing compile errors about GlobalID type mismatches if the target type doesn't already implement Node.
+
+**Suggested Fix:** Add a note to relationships.md explaining:
+1. The target type must implement Node
+2. You may need to add a query endpoint for the target type
+3. Existing resolvers may need updating when adding Node to a type
+
+##### Gap 4: Policy Checker Not Available to OSS Consumers - REMOVED
+
+**Feature:** 8 (Policy Checker)
+**Severity:** N/A - Feature removed from skill
+**File:** `viaduct/resources/gotchas/policy-checkers.md` - DELETED
+
+**Finding:** Policy checkers require `viaduct.engine.api.*` classes (`CheckerExecutor`, `CheckerExecutorFactory`, `CheckerResult`, etc.) which are NOT exposed in the published Viaduct fat jar. The engine-api module is used as an `implementation` dependency internally, meaning its types are not available to consumers.
+
+**Resolution:** Removed all policy checker documentation from the skill. OSS consumers should use alternative authorization approaches:
+- Database-level security (Row Level Security)
+- Resolver-level permission checks
+- Scope-based visibility (`@scope` directive)
 
 ---
 
@@ -371,7 +504,6 @@ Add gaps to this section as they're discovered:
 | Mutation patterns | `viaduct/resources/core/mutations.md` |
 | Relationship patterns | `viaduct/resources/core/relationships.md` |
 | GlobalID issues | `viaduct/resources/gotchas/global-ids.md` |
-| Policy checker issues | `viaduct/resources/gotchas/policy-checkers.md` |
 | Build/runtime errors | `viaduct/resources/reference/troubleshooting.md` |
 | Schema design | `viaduct/resources/planning/schema-design.md` |
 | Missing from overview | `viaduct/SKILL.md` |

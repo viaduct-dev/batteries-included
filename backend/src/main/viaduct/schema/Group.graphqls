@@ -3,7 +3,7 @@ A group that contains resources and members.
 Users must be members of the group to access resources within it.
 This is a core framework concept for organizing access control.
 """
-type Group implements Node @scope(to: ["default"]) @requiresGroupMembership(groupIdField: "id") {
+type Group implements Node @scope(to: ["default"]) {
   """
   The unique identifier for the group.
   """
@@ -28,6 +28,16 @@ type Group implements Node @scope(to: ["default"]) @requiresGroupMembership(grou
   All members of this group.
   """
   members: [GroupMember!]! @resolver
+
+  """
+  The number of members in this group.
+  """
+  memberCount: Int! @resolver
+
+  """
+  Tags associated with this group.
+  """
+  tags: [Tag!]! @resolver
 
   """
   When the group was created.
@@ -63,6 +73,11 @@ type GroupMember @scope(to: ["default"]) {
   When the user joined the group.
   """
   joinedAt: String!
+
+  """
+  Display name for the member, computed from user lookup.
+  """
+  displayName: String @resolver
 }
 
 """

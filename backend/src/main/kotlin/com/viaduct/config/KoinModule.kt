@@ -6,6 +6,7 @@ import com.viaduct.SupabaseService
 import com.viaduct.resolvers.*
 import com.viaduct.services.AuthService
 import com.viaduct.services.GroupService
+import com.viaduct.services.TagService
 import com.viaduct.services.UserService
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -39,6 +40,7 @@ fun appModule(supabaseUrl: String, supabaseKey: String) = module {
     singleOf(::AuthService)
     singleOf(::UserService)
     singleOf(::GroupService)
+    singleOf(::TagService)
 
     // Request scope - automatically tied to Ktor request lifecycle
     // ApplicationCall is automatically available for injection in this scope
@@ -93,6 +95,25 @@ fun appModule(supabaseUrl: String, supabaseKey: String) = module {
 
     // Resolvers - Group Fields
     singleOf(::GroupMembersResolver)
+    singleOf(::GroupMemberCountResolver)
+    singleOf(::GroupMemberDisplayNameResolver)
+    singleOf(::GroupTagsResolver)
+
+    // Resolvers - User Queries
+    singleOf(::UserQueryResolver)
+
+    // Resolvers - Tag Queries
+    singleOf(::TagQueryResolver)
+
+    // Resolvers - Tag Fields
+    singleOf(::TagCreatedByResolver)
+    singleOf(::TagUsageCountResolver)
+
+    // Resolvers - Tag Mutations
+    singleOf(::CreateTagResolver)
+    singleOf(::UpdateTagResolver)
+    singleOf(::DeleteTagResolver)
+    singleOf(::DeleteAllTagsResolver)
 
     // Note: ChecklistItem resolvers moved to examples
     // See: backend/src/main/kotlin/com/viaduct/examples/checklist/resolvers/

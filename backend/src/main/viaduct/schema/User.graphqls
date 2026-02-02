@@ -1,7 +1,7 @@
 """
 A user in the system.
 """
-type User @scope(to: ["default"]) {
+type User implements Node @scope(to: ["default"]) {
   """
   The user's unique identifier.
   """
@@ -21,6 +21,13 @@ type User @scope(to: ["default"]) {
   When the user was created.
   """
   createdAt: String!
+}
+
+extend type Query @scope(to: ["default"]) {
+  """
+  Get a user by ID.
+  """
+  user(id: ID! @idOf(type: "User")): User @resolver
 }
 
 """

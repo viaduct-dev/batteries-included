@@ -24,7 +24,7 @@ class SearchUsersQueryResolver(
             }
 
             User.Builder(ctx)
-                .id(entity.id)
+                .id(ctx.globalIDFor(User.Reflection, entity.id))
                 .email(entity.email)
                 .isAdmin(isAdmin)
                 .createdAt(entity.created_at)

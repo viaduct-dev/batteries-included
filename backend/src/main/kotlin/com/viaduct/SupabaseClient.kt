@@ -417,4 +417,173 @@ class AuthenticatedSupabaseClient(
         }
         return true
     }
+
+    /**
+     * Get a specific tag by ID
+     * Uses the Supabase Postgrest client which properly handles RLS policies
+     */
+    suspend fun getTagById(tagId: String): com.viaduct.services.TagEntity? {
+        return client.from("tags")
+            .select {
+                filter {
+                    eq("id", tagId)
+                }
+            }
+            .decodeSingleOrNull<com.viaduct.services.TagEntity>()
+    }
+
+    /**
+     * Create a new tag
+     */
+    suspend fun createTag(name: String, color: String?, createdById: String): com.viaduct.services.TagEntity {
+        val input = com.viaduct.services.CreateTagInput(name = name, color = color, created_by_id = createdById)
+        val response: HttpResponse = httpClient.post("$supabaseUrl/rest/v1/tags") {
+            header("Authorization", "Bearer $accessToken")
+            header("apikey", supabaseKey)
+            header("Prefer", "return=representation")
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(com.viaduct.services.CreateTagInput.serializer(), input))
+        }
+        val jsonString = response.bodyAsText()
+        val tags = json.decodeFromString<List<com.viaduct.services.TagEntity>>(jsonString)
+        return tags.first()
+    }
+
+    /**
+     * Update an existing tag
+     */
+    suspend fun updateTag(tagId: String, name: String?, color: String?): com.viaduct.services.TagEntity {
+        val updates = buildMap {
+            if (name != null) put("name", name)
+            if (color != null) put("color", color)
+        }
+        val response: HttpResponse = httpClient.patch("$supabaseUrl/rest/v1/tags?id=eq.$tagId") {
+            header("Authorization", "Bearer $accessToken")
+            header("apikey", supabaseKey)
+            header("Prefer", "return=representation")
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(updates))
+        }
+        val jsonString = response.bodyAsText()
+        val tags = json.decodeFromString<List<com.viaduct.services.TagEntity>>(jsonString)
+        return tags.first()
+    }
+
+    /**
+     * Delete a tag by ID
+     */
+    suspend fun deleteTag(tagId: String): Boolean {
+        httpClient.delete("$supabaseUrl/rest/v1/tags?id=eq.$tagId") {
+            header("Authorization", "Bearer $accessToken")
+            header("apikey", supabaseKey)
+        }
+        return true
+    }
+
+    /**
+     * Get all tags for a specific group via the group_tags join table
+     */
+    suspend fun getTagsForGroup(groupId: String): List<com.viaduct.services.TagEntity> {
+        // Get tag IDs from join table
+        val groupTags = httpClient.get("$supabaseUrl/rest/v1/group_tags?group_id=eq.$groupId&select=tag_id") {
+            header("Authorization", "Bearer $accessToken")
+            header("apikey", supabaseKey)
+        }.bodyAsText().let { json.decodeFromString<List<com.viaduct.services.GroupTagEntity>>(it) }
+
+        if (groupTags.isEmpty()) return emptyList()
+
+        // Fetch actual tags
+        val tagIds = groupTags.map { it.tag_id }
+        val tagIdsParam = tagIds.joinToString(",") { "\"$it\"" }
+        return httpClient.get("$supabaseUrl/rest/v1/tags?id=in.($tagIdsParam)") {
+            header("Authorization", "Bearer $accessToken")
+            header("apikey", supabaseKey)
+        }.bodyAsText().let { json.decodeFromString<List<com.viaduct.services.TagEntity>>(it) }
+    }
+
+    /**
+     * Batch fetch tags for multiple groups.
+     * Returns a map of groupId -> list of tags.
+     */
+    suspend fun getTagsForGroups(groupIds: List<String>): Map<String, List<com.viaduct.services.TagEntity>> {
+        if (groupIds.isEmpty()) return emptyMap()
+
+        // Get all group_tags for these groups in one query
+        val groupIdsParam = groupIds.joinToString(",") { "\"$it\"" }
+        val groupTags = httpClient.get("$supabaseUrl/rest/v1/group_tags?group_id=in.($groupIdsParam)&select=group_id,tag_id") {
+            header("Authorization", "Bearer $accessToken")
+            header("apikey", supabaseKey)
+        }.bodyAsText().let { json.decodeFromString<List<com.viaduct.services.GroupTagEntity>>(it) }
+
+        if (groupTags.isEmpty()) {
+            // Return empty list for each group
+            return groupIds.associateWith { emptyList() }
+        }
+
+        // Get all unique tag IDs
+        val tagIds = groupTags.map { it.tag_id }.distinct()
+        val tagIdsParam = tagIds.joinToString(",") { "\"$it\"" }
+
+        // Fetch all tags in one query
+        val tags = httpClient.get("$supabaseUrl/rest/v1/tags?id=in.($tagIdsParam)") {
+            header("Authorization", "Bearer $accessToken")
+            header("apikey", supabaseKey)
+        }.bodyAsText().let { json.decodeFromString<List<com.viaduct.services.TagEntity>>(it) }
+
+        // Create a map of tagId -> tag
+        val tagMap = tags.associateBy { it.id }
+
+        // Group by group_id and map to tags
+        val groupedTagIds = groupTags.groupBy({ it.group_id }, { it.tag_id })
+
+        // Return a map of groupId -> list of tags, ensuring all requested groups are in the result
+        return groupIds.associateWith { groupId ->
+            groupedTagIds[groupId]?.mapNotNull { tagId -> tagMap[tagId] } ?: emptyList()
+        }
+    }
+
+    /**
+     * Get usage count for a tag (how many groups use it).
+     * Admin-only operation.
+     */
+    suspend fun getTagUsageCount(tagId: String): Int {
+        val response = httpClient.get("$supabaseUrl/rest/v1/group_tags?tag_id=eq.$tagId&select=group_id") {
+            header("Authorization", "Bearer $accessToken")
+            header("apikey", supabaseKey)
+            header("Prefer", "count=exact")
+        }
+        // Count from Content-Range header or parse response
+        val contentRange = response.headers["Content-Range"]
+        if (contentRange != null) {
+            // Format: "*/total" or "0-9/total"
+            val total = contentRange.substringAfterLast("/").toIntOrNull() ?: 0
+            return total
+        }
+        // Fallback: count response array
+        val groupTags = response.bodyAsText().let { json.decodeFromString<List<com.viaduct.services.GroupTagEntity>>(it) }
+        return groupTags.size
+    }
+
+    /**
+     * Delete all tags.
+     * Admin-only operation.
+     * Returns the number of tags deleted.
+     */
+    suspend fun deleteAllTags(): Int {
+        // First count how many tags exist
+        val countResponse = httpClient.get("$supabaseUrl/rest/v1/tags?select=id") {
+            header("Authorization", "Bearer $accessToken")
+            header("apikey", supabaseKey)
+        }
+        val tags = countResponse.bodyAsText().let { json.decodeFromString<List<Map<String, String>>>(it) }
+        val count = tags.size
+
+        // Delete all tags (cascades to group_tags due to ON DELETE CASCADE)
+        httpClient.delete("$supabaseUrl/rest/v1/tags?id=neq.00000000-0000-0000-0000-000000000000") {
+            header("Authorization", "Bearer $accessToken")
+            header("apikey", supabaseKey)
+        }
+
+        return count
+    }
 }

@@ -1,0 +1,114 @@
+"""
+A tag that can be applied to groups for categorization.
+"""
+type Tag implements Node @scope(to: ["default"]) {
+  """
+  The unique identifier for the tag.
+  """
+  id: ID!
+
+  """
+  The name of the tag.
+  """
+  name: String!
+
+  """
+  Optional color for visual display (hex code).
+  """
+  color: String
+
+  """
+  The ID of the user who created this tag.
+  """
+  createdById: String!
+
+  """
+  The user who created this tag.
+  """
+  createdBy: User @resolver
+
+  """
+  When the tag was created.
+  """
+  createdAt: String!
+}
+
+extend type Query @scope(to: ["default"]) {
+  """
+  Get a specific tag by ID.
+  """
+  tag(id: ID! @idOf(type: "Tag")): Tag @resolver
+}
+
+"""
+Input for creating a new tag.
+"""
+input CreateTagInput @scope(to: ["default"]) {
+  """
+  The name of the tag.
+  """
+  name: String!
+
+  """
+  Optional color for visual display (hex code).
+  """
+  color: String
+}
+
+"""
+Input for updating an existing tag.
+"""
+input UpdateTagInput @scope(to: ["default"]) {
+  """
+  The ID of the tag to update.
+  """
+  id: ID! @idOf(type: "Tag")
+
+  """
+  The new name for the tag.
+  """
+  name: String
+
+  """
+  The new color for the tag (hex code).
+  """
+  color: String
+}
+
+extend type Mutation @scope(to: ["default"]) {
+  """
+  Create a new tag.
+  """
+  createTag(input: CreateTagInput!): Tag! @resolver
+
+  """
+  Update an existing tag.
+  """
+  updateTag(input: UpdateTagInput!): Tag! @resolver
+
+  """
+  Delete a tag by ID.
+  """
+  deleteTag(id: ID! @idOf(type: "Tag")): Boolean! @resolver
+}
+
+# Admin-only extension for Tag
+extend type Tag @scope(to: ["admin"]) {
+  """
+  Internal notes about this tag (admin only).
+  """
+  internalNotes: String
+
+  """
+  Number of groups using this tag (admin only).
+  """
+  usageCount: Int @resolver
+}
+
+extend type Mutation @scope(to: ["admin"]) {
+  """
+  Delete all tags. Admin-only bulk operation.
+  Returns the number of tags deleted.
+  """
+  deleteAllTags: Int! @resolver
+}
