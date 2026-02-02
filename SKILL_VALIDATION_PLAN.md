@@ -308,56 +308,52 @@ Track any information missing from the skill:
 
 ## Remediation Process
 
-When the skill documentation is insufficient:
+**Strategy:** Collect ALL gaps during validation, then apply ONE comprehensive fix to the skill.
 
-### Step 1: Document the Gap
+### During Validation: Document Every Gap
+
+For each gap encountered, add an entry to the table above AND create a detailed record:
 
 ```markdown
+### Gap: [Short description]
+
 **Feature:** [Feature number and name]
+**Severity:** Blocker | Major | Minor
 **What I tried:** [What the skill said to do]
 **What happened:** [Error or confusion]
 **What was missing:** [Specific information needed]
 **How I solved it:** [External source or trial/error]
+**Suggested fix:** [What to add to skill, which file]
 ```
 
-### Step 2: Create Fix in Skill Repo
+**Do NOT create PRs yet.** Continue validation using external sources as needed.
 
-```bash
-# Clone/update the skills repo
-cd /tmp/skills
-git checkout main && git pull
-git checkout -b fix/[gap-description]
+### After Validation: Comprehensive Skill Update
 
-# Edit the appropriate file
-# - resources/core/*.md for resolver issues
-# - resources/gotchas/*.md for GlobalID/policy issues
-# - resources/reference/troubleshooting.md for error messages
-# - SKILL.md for overview/quick reference gaps
-```
+Once all 8 features are implemented:
 
-### Step 3: Test the Fix
+1. **Review all gaps** - Identify patterns and prioritize
+2. **Create single branch** for all fixes:
+   ```bash
+   cd /tmp/skills
+   git checkout main && git pull
+   git checkout -b fix/validation-gaps
+   ```
+3. **Apply all fixes** to appropriate skill files
+4. **Create single PR** with all improvements
+5. **Re-run validation** with updated skill (optional second pass)
 
-Before committing, verify the fix would have helped:
-1. Read ONLY the updated skill documentation
-2. Confirm the missing information is now present
-3. Confirm it's in a logical location (discoverable)
+### Gap Collection Template
 
-### Step 4: Submit PR to Skills Repo
+Add gaps to this section as they're discovered:
 
-```bash
-cd /tmp/skills
-git add -A
-git commit -m "fix(viaduct): add [missing info] to [file]
+---
 
-Gap found during validation of feature [N]: [feature name]
-"
-git push -u origin fix/[gap-description]
-gh pr create --title "fix(viaduct): [description]" --body "..."
-```
+#### Gaps Found
 
-### Step 5: Continue Validation
+<!-- Add gaps here during validation -->
 
-After documenting the gap, continue with implementation using whatever source helped you solve it. We'll batch skill fixes at the end.
+*No gaps recorded yet.*
 
 ---
 
