@@ -295,9 +295,90 @@ After implementing each feature, verify:
 
 Track any information missing from the skill:
 
-| Feature | Gap Found | Suggested Addition |
-|---------|-----------|-------------------|
-| | | |
+| Feature | Gap Found | Severity | Skill File to Update | Status |
+|---------|-----------|----------|---------------------|--------|
+| | | | | |
+
+**Severity Levels:**
+- **Blocker** - Cannot implement without additional info
+- **Major** - Requires significant trial/error or external lookup
+- **Minor** - Inconvenient but discoverable
+
+---
+
+## Remediation Process
+
+When the skill documentation is insufficient:
+
+### Step 1: Document the Gap
+
+```markdown
+**Feature:** [Feature number and name]
+**What I tried:** [What the skill said to do]
+**What happened:** [Error or confusion]
+**What was missing:** [Specific information needed]
+**How I solved it:** [External source or trial/error]
+```
+
+### Step 2: Create Fix in Skill Repo
+
+```bash
+# Clone/update the skills repo
+cd /tmp/skills
+git checkout main && git pull
+git checkout -b fix/[gap-description]
+
+# Edit the appropriate file
+# - resources/core/*.md for resolver issues
+# - resources/gotchas/*.md for GlobalID/policy issues
+# - resources/reference/troubleshooting.md for error messages
+# - SKILL.md for overview/quick reference gaps
+```
+
+### Step 3: Test the Fix
+
+Before committing, verify the fix would have helped:
+1. Read ONLY the updated skill documentation
+2. Confirm the missing information is now present
+3. Confirm it's in a logical location (discoverable)
+
+### Step 4: Submit PR to Skills Repo
+
+```bash
+cd /tmp/skills
+git add -A
+git commit -m "fix(viaduct): add [missing info] to [file]
+
+Gap found during validation of feature [N]: [feature name]
+"
+git push -u origin fix/[gap-description]
+gh pr create --title "fix(viaduct): [description]" --body "..."
+```
+
+### Step 5: Continue Validation
+
+After documenting the gap, continue with implementation using whatever source helped you solve it. We'll batch skill fixes at the end.
+
+---
+
+## Skill Repo Reference
+
+**Repo:** https://github.com/viaduct-dev/skills
+**Local clone:** /tmp/skills
+
+**File mapping for fixes:**
+
+| Issue Type | Skill File |
+|------------|------------|
+| Node resolver patterns | `viaduct/resources/core/entities.md` |
+| Query/field resolvers | `viaduct/resources/core/queries.md` |
+| Mutation patterns | `viaduct/resources/core/mutations.md` |
+| Relationship patterns | `viaduct/resources/core/relationships.md` |
+| GlobalID issues | `viaduct/resources/gotchas/global-ids.md` |
+| Policy checker issues | `viaduct/resources/gotchas/policy-checkers.md` |
+| Build/runtime errors | `viaduct/resources/reference/troubleshooting.md` |
+| Schema design | `viaduct/resources/planning/schema-design.md` |
+| Missing from overview | `viaduct/SKILL.md` |
 
 ---
 
