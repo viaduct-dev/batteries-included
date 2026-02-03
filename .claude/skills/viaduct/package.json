@@ -1,0 +1,18 @@
+{
+  "name": "viaduct-skill-evaluations",
+  "version": "1.0.0",
+  "description": "Evaluation harness for the Viaduct Claude Code skill",
+  "type": "module",
+  "scripts": {
+    "eval": "npx tsx run-evaluations.ts",
+    "eval:one": "npx tsx run-evaluations.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

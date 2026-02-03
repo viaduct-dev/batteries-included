@@ -1,0 +1,146 @@
+[
+  {
+    "id": "eval-01-field-resolver",
+    "name": "Simple Field Resolver",
+    "skills": ["viaduct"],
+    "query": "Add a computed field memberCount to the Group type that returns the number of members in the group. The field should use a field resolver that queries the group_members table to count members. Use the viaduct skill for guidance.",
+    "files": ["backend/src/main/viaduct/schema/Group.graphqls"],
+    "expected_behavior": [
+      "Adds 'memberCount: Int! @resolver' to the Group type in schema",
+      "Creates resolver class extending GroupResolvers.MemberCount()",
+      "Uses @Resolver annotation with objectValueFragment to specify required parent fields",
+      "Accesses parent data via ctx.objectValue",
+      "Does NOT set memberCount in the Group node resolver"
+    ],
+    "verify_patterns": [
+      "memberCount: Int! @resolver",
+      "GroupResolvers.MemberCount",
+      "ctx.objectValue"
+    ]
+  },
+  {
+    "id": "eval-02-node-resolver",
+    "name": "Node Type and Query Resolver",
+    "skills": ["viaduct"],
+    "query": "Create a new Tag entity with id, name, color, and createdAt fields. The Tag should implement the Node interface and be fetchable by GlobalID via a 'tag(id: ID!)' query. Create the schema file Tag.graphqls and the query resolver. Use the viaduct skill for guidance.",
+    "files": [],
+    "expected_behavior": [
+      "Creates Tag.graphqls with 'type Tag implements Node @scope(to: [\"default\"])'",
+      "Includes 'id: ID!' field for Node interface",
+      "Creates query field 'tag(id: ID! @idOf(type: \"Tag\")): Tag @resolver'",
+      "Uses @idOf directive on the ID argument",
+      "Creates TagQueryResolver extending QueryResolvers.Tag()",
+      "Uses ctx.arguments.id.internalID to get the UUID for database lookup"
+    ],
+    "verify_patterns": [
+      "type Tag implements Node",
+      "@idOf\\(type: \"Tag\"\\)",
+      "QueryResolvers.Tag",
+      "internalID"
+    ]
+  },
+  {
+    "id": "eval-03-required-selection-set",
+    "name": "Field Resolver with Required Selection Set",
+    "skills": ["viaduct"],
+    "query": "Add a displayName field to GroupMember that looks up the user's email based on the userId field. The field should use a resolver with a required selection set to access userId from the parent. Use the viaduct skill for guidance.",
+    "files": ["backend/src/main/viaduct/schema/Group.graphqls"],
+    "expected_behavior": [
+      "Adds 'displayName: String @resolver' to GroupMember type",
+      "Creates resolver with @Resolver annotation specifying objectValueFragment",
+      "Extends GroupMemberResolvers.DisplayName()",
+      "Accesses userId via ctx.objectValue.getUserId()",
+      "Does NOT try to access fields not declared in the objectValueFragment"
+    ],
+    "verify_patterns": [
+      "displayName: String @resolver",
+      "GroupMemberResolvers.DisplayName",
+      "objectValueFragment",
+      "getUserId"
+    ]
+  },
+  {
+    "id": "eval-04-batch-resolution",
+    "name": "Batch Resolution for N+1 Prevention",
+    "skills": ["viaduct"],
+    "query": "Add a tags field to Group that returns all tags associated with the group. Use batch resolution to prevent N+1 queries when fetching tags for multiple groups. You'll need to create a group_tags join table concept. Use the viaduct skill for guidance on implementing batchResolve.",
+    "files": ["backend/src/main/viaduct/schema/Group.graphqls"],
+    "expected_behavior": [
+      "Adds 'tags: [Tag!]! @resolver' to Group type",
+      "Creates GroupTagsResolver extending GroupResolvers.Tags()",
+      "Implements batchResolve with List<Context> parameter",
+      "Returns List<FieldValue<List<Tag>>>",
+      "Uses FieldValue.ofValue() for results"
+    ],
+    "verify_patterns": [
+      "tags: \\[Tag!\\]! @resolver",
+      "GroupResolvers.Tags",
+      "batchResolve",
+      "FieldValue"
+    ]
+  },
+  {
+    "id": "eval-05-mutations-globalid",
+    "name": "Mutations with GlobalID Handling",
+    "skills": ["viaduct"],
+    "query": "Create CRUD mutations for Tag: createTag (takes name and color), updateTag (takes id, name, color), and deleteTag (takes id). The update and delete operations must use GlobalID with the @idOf directive. Use the viaduct skill for guidance on GlobalID handling in mutations.",
+    "files": [],
+    "expected_behavior": [
+      "Creates CreateTagInput without @idOf (new entity)",
+      "Creates UpdateTagInput with 'id: ID! @idOf(type: \"Tag\")'",
+      "Creates deleteTag with @idOf on the id argument",
+      "Mutation resolvers extend MutationResolvers.*",
+      "Uses input.id.internalID (not Base64 decoding)",
+      "Uses ctx.globalIDFor when returning Tag"
+    ],
+    "verify_patterns": [
+      "CreateTagInput",
+      "UpdateTagInput",
+      "@idOf\\(type: \"Tag\"\\)",
+      "MutationResolvers",
+      "internalID",
+      "globalIDFor"
+    ]
+  },
+  {
+    "id": "eval-06-scopes",
+    "name": "Scope-based API Visibility",
+    "skills": ["viaduct"],
+    "query": "Add admin-only fields to Tag: an internalNotes string field and a usageCount integer field with a resolver. Also add an admin-only deleteAllTags mutation. Use @scope(to: [\"admin\"]) to restrict these to admin API consumers. Use the viaduct skill for guidance.",
+    "files": ["backend/src/main/viaduct/schema/Tag.graphqls"],
+    "expected_behavior": [
+      "Uses 'extend type Tag @scope(to: [\"admin\"])' for admin fields",
+      "Admin fields are separate from default-scoped fields",
+      "Creates 'extend type Mutation @scope(to: [\"admin\"])' for deleteAllTags",
+      "Field resolver for usageCount extends TagResolvers.UsageCount"
+    ],
+    "verify_patterns": [
+      "@scope\\(to: \\[\"admin\"\\]\\)",
+      "extend type Tag",
+      "deleteAllTags",
+      "TagResolvers.UsageCount"
+    ]
+  },
+  {
+    "id": "eval-07-entity-relationships",
+    "name": "Entity Relationships with Node References",
+    "skills": ["viaduct"],
+    "query": "Add a createdBy field to Tag that returns the User who created it. Store the raw user ID as createdById, and use the node reference pattern with ctx.nodeFor() for the createdBy relationship. The User type must implement Node for this to work. Use the viaduct skill for guidance.",
+    "files": ["backend/src/main/viaduct/schema/Tag.graphqls"],
+    "expected_behavior": [
+      "Adds 'createdById: String!' to Tag",
+      "Adds 'createdBy: User @resolver' for the relationship",
+      "Ensures User type implements Node",
+      "Creates TagCreatedByResolver with objectValueFragment including createdById",
+      "Returns ctx.nodeFor(ctx.globalIDFor(User.Reflection, createdById))",
+      "Does NOT fetch user data directly"
+    ],
+    "verify_patterns": [
+      "createdById: String",
+      "createdBy: User @resolver",
+      "TagResolvers.CreatedBy",
+      "nodeFor",
+      "globalIDFor.*User"
+    ]
+  }
+]

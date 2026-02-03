@@ -1,0 +1,18 @@
+# Evaluation workspace (cloned repos)
+.eval-workspace/
+
+# Evaluation outputs
+.eval-outputs/
+
+# Results
+evaluation-results.json
+
+# Node modules (if using TypeScript harness)
+node_modules/
+package-lock.json
+
+# Kotlin/Gradle build artifacts
+eval-kotlin/build/
+eval-kotlin/.gradle/
+eval-kotlin/.idea/
+eval-kotlin/*.iml
