@@ -1,0 +1,5 @@
+# Base schema - evals will append their types here
+
+extend type Query {
+    hello: String! @resolver
+}
