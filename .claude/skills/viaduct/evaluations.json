@@ -45,7 +45,7 @@
       "Accesses userId via ctx.objectValue.getUserId()"
     ],
     "verify_patterns": [
-      "displayName: String @resolver",
+      "displayName: String!? @resolver",
       "GroupMemberResolvers.DisplayName",
       "objectValueFragment|fragment .* on GroupMember",
       "getUserId"

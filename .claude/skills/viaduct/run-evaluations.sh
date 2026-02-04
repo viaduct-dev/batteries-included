@@ -163,7 +163,8 @@ $clean_query"
     while [[ $attempt -le $MAX_RETRIES ]]; do
         echo "  Running gradle build (attempt $attempt/$MAX_RETRIES)..."
 
-        if (cd "$WORK_DIR" && ./gradlew classes --no-daemon -q > "$build_output" 2>&1); then
+        # Run viaductCodegen first in case Claude modified the schema (adds new @resolver fields)
+        if (cd "$WORK_DIR" && ./gradlew viaductCodegen classes --no-daemon -q > "$build_output" 2>&1); then
             build_success=1
             echo -e "  ${GREEN}Build: PASSED${NC}"
             break
