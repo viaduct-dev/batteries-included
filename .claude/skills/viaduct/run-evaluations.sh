@@ -127,6 +127,7 @@ run_evaluation() {
     local eval_query="$3"
     local verify_patterns="$4"
     local schema_addition="$5"
+    local negative_patterns="$6"
 
     local suffix=$([[ $USE_SKILL -eq 0 ]] && echo "-noskill" || echo "")
     local claude_output="$OUTPUT_DIR/$eval_id$suffix-claude.txt"
@@ -234,7 +235,7 @@ Work ONLY in $WORK_DIR." \
     local missing_patterns=()
 
     if [[ -n "$verify_patterns" ]]; then
-        echo "  Checking patterns..."
+        echo "  Checking required patterns..."
         while IFS= read -r pattern; do
             if [[ -n "$pattern" ]]; then
                 ((patterns_total++))
@@ -249,6 +250,25 @@ Work ONLY in $WORK_DIR." \
         done <<< "$verify_patterns"
     fi
 
+    # Check negative patterns (patterns that should NOT appear)
+    local negative_failed=0
+    local found_negative=()
+
+    if [[ -n "$negative_patterns" ]]; then
+        echo "  Checking forbidden patterns (should NOT appear)..."
+        while IFS= read -r pattern; do
+            if [[ -n "$pattern" ]]; then
+                if grep -rqE "$pattern" "$WORK_DIR/src" 2>/dev/null; then
+                    echo -e "    ${RED}✗ FOUND:${NC} $pattern"
+                    found_negative+=("$pattern")
+                    ((negative_failed++))
+                else
+                    echo -e "    ${GREEN}✓ not found:${NC} $pattern"
+                fi
+            fi
+        done <<< "$negative_patterns"
+    fi
+
     # Record missing patterns
     if [[ ${#missing_patterns[@]} -gt 0 ]]; then
         echo "Missing patterns:" >> "$errors_file"
@@ -257,7 +277,15 @@ Work ONLY in $WORK_DIR." \
         done
     fi
 
-    if [[ $build_success -eq 1 ]] && [[ $patterns_found -eq $patterns_total ]]; then
+    # Record forbidden patterns that were found
+    if [[ ${#found_negative[@]} -gt 0 ]]; then
+        echo "Forbidden patterns found (WRONG!):" >> "$errors_file"
+        for p in "${found_negative[@]}"; do
+            echo "  - $p" >> "$errors_file"
+        done
+    fi
+
+    if [[ $build_success -eq 1 ]] && [[ $patterns_found -eq $patterns_total ]] && [[ $negative_failed -eq 0 ]]; then
         echo -e "\n  ${GREEN}✅ PASSED${NC} (attempt $attempt)"
         # Write result to file: "attempt|error1|error2|..."
         local result="$attempt"
@@ -297,6 +325,7 @@ main() {
         local eval_query=$(jq -r ".[$i].query" "$EVAL_FILE")
         local verify_patterns=$(jq -r ".[$i].verify_patterns | .[]?" "$EVAL_FILE" 2>/dev/null || echo "")
         local schema_addition=$(jq -r ".[$i].schema // empty" "$EVAL_FILE" 2>/dev/null || echo "")
+        local negative_patterns=$(jq -r ".[$i].negative_patterns | .[]?" "$EVAL_FILE" 2>/dev/null || echo "")
 
         # Filter check - partial match on id or name
         if [[ -n "$FILTER" && "$eval_id" != *"$FILTER"* && "$eval_name" != *"$FILTER"* ]]; then
@@ -304,7 +333,7 @@ main() {
             continue
         fi
 
-        if run_evaluation "$eval_id" "$eval_name" "$eval_query" "$verify_patterns" "$schema_addition"; then
+        if run_evaluation "$eval_id" "$eval_name" "$eval_query" "$verify_patterns" "$schema_addition" "$negative_patterns"; then
             ((passed++))
 
             # Read result from file: "attempt|error1|error2|..."

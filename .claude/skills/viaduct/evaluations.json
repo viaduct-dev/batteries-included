@@ -4,14 +4,14 @@
     "name": "Simple Field Resolver",
     "skills": ["viaduct"],
     "schema": "type Group implements Node @resolver @scope(to: [\"default\"]) {\n    id: ID!\n    name: String!\n    description: String\n}",
-    "query": "Add a computed field memberCount to the Group type that returns an integer (hardcode to return 42 for now). The field should use a field resolver. Use the viaduct skill for guidance.",
+    "query": "I want to show a member count on each Group. Add a memberCount field that returns 42 for now.",
     "expected_behavior": [
       "Adds 'memberCount: Int! @resolver' to the Group type in schema",
       "Creates resolver class extending GroupResolvers.MemberCount()",
       "Uses @Resolver annotation"
     ],
     "verify_patterns": [
-      "memberCount: Int! @resolver",
+      "memberCount: Int!? @resolver",
       "GroupResolvers.MemberCount"
     ]
   },
@@ -20,7 +20,7 @@
     "name": "Node Type and Query Resolver",
     "skills": ["viaduct"],
     "schema": "type Tag implements Node @resolver @scope(to: [\"default\"]) {\n    id: ID!\n    name: String!\n    color: String!\n}\n\nextend type Query {\n    tag(id: ID! @idOf(type: \"Tag\")): Tag @resolver\n}",
-    "query": "Implement the TagNodeResolver and TagQueryResolver for the Tag type. The TagNodeResolver should return a Tag with a hardcoded name and color based on the id. The TagQueryResolver should look up a Tag by its GlobalID. Use the viaduct skill for guidance on using ctx.arguments.id.internalID.",
+    "query": "I need to be able to fetch a Tag by its ID. Implement the resolvers so I can query for a single tag. Return hardcoded data for now.",
     "expected_behavior": [
       "Creates TagNodeResolver extending NodeResolvers.Tag()",
       "Creates TagQueryResolver extending QueryResolvers.Tag()",
@@ -37,7 +37,7 @@
     "name": "Field Resolver with Required Selection Set",
     "skills": ["viaduct"],
     "schema": "type GroupMember implements Node @resolver @scope(to: [\"default\"]) {\n    id: ID!\n    userId: String!\n    role: String!\n}",
-    "query": "Add a displayName field to GroupMember that returns a computed display name based on the userId field (e.g. 'User: <userId>'). The field should use a resolver with a required selection set (objectValueFragment) to access userId from the parent. Use the viaduct skill for guidance.",
+    "query": "Add a displayName field to GroupMember that shows 'User: ' followed by the userId. It needs to read the userId from the parent object.",
     "expected_behavior": [
       "Adds 'displayName: String @resolver' to GroupMember type",
       "Creates resolver with @Resolver annotation specifying objectValueFragment",
@@ -56,7 +56,7 @@
     "name": "Batch Resolution for N+1 Prevention",
     "skills": ["viaduct"],
     "schema": "type Tag implements Node @resolver @scope(to: [\"default\"]) {\n    id: ID!\n    name: String!\n}\n\ntype Group implements Node @resolver @scope(to: [\"default\"]) {\n    id: ID!\n    name: String!\n    tags: [Tag!]! @resolver\n}",
-    "query": "Implement the GroupTagsResolver using batch resolution to prevent N+1 queries. Return a hardcoded list of tags for each group. Use the viaduct skill for guidance on implementing batchResolve with FieldValue.",
+    "query": "Implement the tags field on Group. Each group should return a list of tags. Make sure it handles multiple groups efficiently without N+1 queries. Return hardcoded tags for now.",
     "expected_behavior": [
       "Creates GroupTagsResolver extending GroupResolvers.Tags()",
       "Implements batchResolve with List<Context> parameter",
@@ -74,7 +74,7 @@
     "name": "Mutations with GlobalID Handling",
     "skills": ["viaduct"],
     "schema": "type Tag implements Node @resolver @scope(to: [\"default\"]) {\n    id: ID!\n    name: String!\n    color: String!\n}\n\ninput CreateTagInput {\n    name: String!\n    color: String!\n}\n\ninput UpdateTagInput {\n    id: ID! @idOf(type: \"Tag\")\n    name: String\n    color: String\n}\n\nextend type Mutation {\n    createTag(input: CreateTagInput!): Tag! @resolver\n    updateTag(input: UpdateTagInput!): Tag @resolver\n    deleteTag(id: ID! @idOf(type: \"Tag\")): Boolean! @resolver\n}",
-    "query": "Implement the mutation resolvers for createTag, updateTag, and deleteTag. The resolvers should use GlobalID properly - using ctx.globalIDFor when returning Tag, and using input.id.internalID for the update/delete mutations. Return hardcoded/mock data. Use the viaduct skill for guidance.",
+    "query": "Implement the tag mutations: createTag, updateTag, and deleteTag. Return mock data for now.",
     "expected_behavior": [
       "Creates CreateTagMutationResolver extending MutationResolvers.CreateTag()",
       "Creates UpdateTagMutationResolver extending MutationResolvers.UpdateTag()",
@@ -95,7 +95,7 @@
     "name": "Scope-based API Visibility",
     "skills": ["viaduct"],
     "schema": "type Tag implements Node @resolver @scope(to: [\"default\"]) {\n    id: ID!\n    name: String!\n}",
-    "query": "Add admin-only fields to Tag: an internalNotes string field and a usageCount integer field with a resolver. Use 'extend type Tag @scope(to: [\"admin\"])' to restrict these to admin API consumers. Also add an admin-only deleteAllTags mutation. Implement the UsageCountResolver. Use the viaduct skill for guidance.",
+    "query": "Add some admin-only fields to Tag: internalNotes (string) and usageCount (computed integer). Also add an admin-only deleteAllTags mutation. These should only be visible to admin API consumers, not the default scope.",
     "expected_behavior": [
       "Uses 'extend type Tag @scope(to: [\"admin\"])' for admin fields",
       "Creates 'extend type Mutation @scope(to: [\"admin\"])' for deleteAllTags",
@@ -113,7 +113,7 @@
     "name": "Entity Relationships with Node References",
     "skills": ["viaduct"],
     "schema": "type User implements Node @resolver @scope(to: [\"default\"]) {\n    id: ID!\n    name: String!\n    email: String!\n}\n\ntype Tag implements Node @resolver @scope(to: [\"default\"]) {\n    id: ID!\n    name: String!\n    createdById: String!\n    createdBy: User @resolver\n}",
-    "query": "Implement the TagCreatedByResolver that resolves the createdBy field using the node reference pattern. It should use ctx.nodeFor() and ctx.globalIDFor() to return a User based on the createdById field. Also implement basic UserNodeResolver and TagNodeResolver. Use the viaduct skill for guidance.",
+    "query": "Implement the createdBy field on Tag so it returns the User who created it. The createdById field has the user's ID. Also implement basic node resolvers for User and Tag.",
     "expected_behavior": [
       "Creates TagCreatedByResolver with objectValueFragment including createdById",
       "Returns ctx.nodeFor(ctx.globalIDFor(User.Reflection, createdById))",
@@ -123,6 +123,74 @@
       "TagResolvers.CreatedBy",
       "nodeFor",
       "globalIDFor.*User"
+    ]
+  },
+  {
+    "id": "gotcha-01-missing-idof-input",
+    "name": "Gotcha: Input Type Missing @idOf",
+    "skills": ["viaduct"],
+    "schema": "type Task implements Node @resolver @scope(to: [\"default\"]) {\n    id: ID!\n    title: String!\n    completed: Boolean!\n}\n\ninput UpdateTaskInput {\n    id: ID!\n    title: String\n    completed: Boolean\n}\n\nextend type Mutation {\n    updateTask(input: UpdateTaskInput!): Task! @resolver\n}",
+    "query": "I want to be able to update a task. Implement the updateTask mutation. Return hardcoded data for now.",
+    "expected_behavior": [
+      "Recognizes @idOf is missing from UpdateTaskInput.id",
+      "Adds @idOf(type: \"Task\") to the id field in schema",
+      "Uses input.id.internalID in the resolver",
+      "Does NOT manually decode Base64"
+    ],
+    "verify_patterns": [
+      "@idOf\\(type: \"Task\"\\)",
+      "MutationResolvers.UpdateTask",
+      "internalID"
+    ],
+    "negative_patterns": [
+      "Base64\\.getDecoder",
+      "Base64\\.decode",
+      "substringAfter\\(\":\"\\)"
+    ]
+  },
+  {
+    "id": "gotcha-02-missing-idof-query-arg",
+    "name": "Gotcha: Query Argument Missing @idOf",
+    "skills": ["viaduct"],
+    "schema": "type Project implements Node @resolver @scope(to: [\"default\"]) {\n    id: ID!\n    name: String!\n    description: String\n}\n\nextend type Query {\n    project(id: ID!): Project @resolver\n}",
+    "query": "I need to fetch a single project by ID. Implement the project query resolver. Return hardcoded data.",
+    "expected_behavior": [
+      "Recognizes @idOf is missing from query argument",
+      "Adds @idOf(type: \"Project\") to the id argument",
+      "Uses ctx.arguments.id.internalID in the resolver",
+      "Does NOT manually decode Base64"
+    ],
+    "verify_patterns": [
+      "project\\(id: ID! @idOf\\(type: \"Project\"\\)\\)",
+      "QueryResolvers.Project",
+      "internalID"
+    ],
+    "negative_patterns": [
+      "Base64\\.getDecoder",
+      "Base64\\.decode",
+      "substringAfter\\(\":\"\\)"
+    ]
+  },
+  {
+    "id": "gotcha-03-globalid-response",
+    "name": "Gotcha: Building GlobalID for Response",
+    "skills": ["viaduct"],
+    "schema": "type Item implements Node @resolver @scope(to: [\"default\"]) {\n    id: ID!\n    name: String!\n    quantity: Int!\n}\n\ninput CreateItemInput {\n    name: String!\n    quantity: Int!\n}\n\nextend type Mutation {\n    createItem(input: CreateItemInput!): Item! @resolver\n}",
+    "query": "Implement the createItem mutation. Generate a UUID for the new item and return it with the input values.",
+    "expected_behavior": [
+      "Uses ctx.globalIDFor(Item.Reflection, uuid) to create GlobalID",
+      "Does NOT pass raw UUID string to .id() method",
+      "Uses Item.Builder pattern"
+    ],
+    "verify_patterns": [
+      "MutationResolvers.CreateItem",
+      "globalIDFor\\(Item\\.Reflection",
+      "Item\\.Builder"
+    ],
+    "negative_patterns": [
+      "\\.id\\([a-z]+Id\\)",
+      "\\.id\\(uuid\\)",
+      "\\.id\\(UUID\\."
     ]
   }
 ]
