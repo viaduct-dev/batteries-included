@@ -8,8 +8,11 @@ import com.viaduct.services.AuthService
 import com.viaduct.services.GroupService
 import com.viaduct.services.UserService
 import io.ktor.client.HttpClient
+import io.ktor.http.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import org.crac.Core
 import org.koin.dsl.koinApplication
 import org.koin.logger.slf4jLogger
@@ -98,6 +101,16 @@ fun main() {
     cracInjector.delegate = KoinTenantCodeInjector(koin)
 
     logger.info("Koin container initialized")
+
+    // Start and stop a throwaway Netty server to force all Netty class
+    // loading (PlatformDependent, NioIoHandler, epoll probing, native
+    // library loading, buffer allocators, etc.) into the checkpoint.
+    logger.info("Warming up Netty class loading...")
+    val warmup = embeddedServer(Netty, port = 0, host = "127.0.0.1") {
+        routing { get("/") { call.respondText("warmup", ContentType.Text.Plain) } }
+    }.start(wait = false)
+    warmup.stop(0, 0)
+    logger.info("Netty warm-up complete")
 
     // ── Phase 2: Checkpoint ─────────────────────────────────────────────
 
