@@ -9,8 +9,8 @@ import com.viaduct.services.GroupService
 import com.viaduct.services.UserService
 import io.ktor.client.HttpClient
 import io.ktor.http.*
+import io.ktor.server.cio.*
 import io.ktor.server.engine.*
-import io.ktor.server.netty.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.crac.Core
@@ -33,7 +33,7 @@ private val logger = org.slf4j.LoggerFactory.getLogger("CracMain")
  *
  * 1. **Pre-initialization** — Compile the Viaduct GraphQL schema, start a
  *    standalone Koin container with all singletons (services, resolvers,
- *    HTTP clients), and wire the [DelegatingTenantCodeInjector]. No Netty
+ *    HTTP clients), and wire the [DelegatingTenantCodeInjector]. No
  *    sockets are opened.
  *
  * 2. **Checkpoint / Restore** — If `-Dcrac.checkpoint` is set the JVM
@@ -41,9 +41,9 @@ private val logger = org.slf4j.LoggerFactory.getLogger("CracMain")
  *    with the compiled schema, all loaded classes, and all Koin singletons
  *    already in memory.
  *
- * 3. **Server start** — The Ktor Netty server is created and binds its
+ * 3. **Server start** — The Ktor CIO server is created and binds its
  *    port. Because Koin is already initialized, only the lightweight Ktor
- *    plugin installation and Netty port bind happen here.
+ *    plugin installation and port bind happen here.
  */
 fun main() {
     // ── Phase 1: Pre-initialization (captured in checkpoint) ────────────
@@ -83,7 +83,7 @@ fun main() {
     }
 
     // Start Koin standalone (not tied to Ktor lifecycle) so singletons
-    // survive checkpoint/restore independently of the Netty server.
+    // survive checkpoint/restore independently of the server.
     logger.info("Initializing Koin container...")
     val koin = koinApplication {
         slf4jLogger()
@@ -102,15 +102,15 @@ fun main() {
 
     logger.info("Koin container initialized")
 
-    // Start and stop a throwaway Netty server to force all Netty class
-    // loading (PlatformDependent, NioIoHandler, epoll probing, native
-    // library loading, buffer allocators, etc.) into the checkpoint.
-    logger.info("Warming up Netty class loading...")
-    val warmup = embeddedServer(Netty, port = 0, host = "127.0.0.1") {
+    // Start and stop a throwaway CIO server to force class loading
+    // (coroutine dispatchers, HTTP codec, Ktor pipeline, etc.) into
+    // the checkpoint so restore doesn't pay class-loading costs.
+    logger.info("Warming up CIO class loading...")
+    val warmup = embeddedServer(CIO, port = 0, host = "127.0.0.1") {
         routing { get("/") { call.respondText("warmup", ContentType.Text.Plain) } }
     }.start(wait = false)
     warmup.stop(0, 0)
-    logger.info("Netty warm-up complete")
+    logger.info("CIO warm-up complete")
 
     // ── Phase 2: Checkpoint ─────────────────────────────────────────────
 
@@ -120,13 +120,13 @@ fun main() {
         logger.info("CRaC: Restored from checkpoint")
     }
 
-    // ── Phase 3: Start Ktor/Netty server ────────────────────────────────
+    // ── Phase 3: Start Ktor/CIO server ──────────────────────────────────
     // Koin singletons survive in the heap from pre-checkpoint init.
-    // Only Ktor plugin installation and Netty port binding happen here.
+    // CIO is pure coroutine-based I/O — no native resources to recreate.
 
     logger.info("Starting Ktor server on port $port")
 
-    embeddedServer(Netty, port = port, host = "0.0.0.0") {
+    embeddedServer(CIO, port = port, host = "0.0.0.0") {
         configureApplication(
             supabaseUrl = supabaseUrl,
             supabaseKey = supabaseKey ?: "NOT_CONFIGURED",

@@ -20,7 +20,7 @@ dependencies {
 
     // Ktor server (upgraded to 3.2.0 for Koin 4.x compatibility)
     implementation("io.ktor:ktor-server-core:3.2.0")
-    implementation("io.ktor:ktor-server-netty:3.2.0")
+    implementation("io.ktor:ktor-server-cio:3.2.0")
     implementation("io.ktor:ktor-server-content-negotiation:3.2.0")
     implementation("io.ktor:ktor-serialization-jackson:3.2.0")
     implementation("io.ktor:ktor-server-cors:3.2.0")

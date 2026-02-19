@@ -15,7 +15,7 @@ import org.koin.dsl.module
  * Koin module for dependency injection configuration.
  *
  * This module is used standalone (not as a Ktor plugin) so that singletons
- * can survive CRaC checkpoint/restore independently of the Netty server.
+ * can survive CRaC checkpoint/restore independently of the server.
  * Request-scoped context creation is handled directly by the auth plugin.
  */
 fun appModule(supabaseUrl: String, supabaseKey: String) = module {

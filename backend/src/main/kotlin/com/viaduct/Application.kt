@@ -102,7 +102,7 @@ fun deriveSupabaseUrl(explicitUrl: String?, projectId: String?, anonKey: String?
  * The pre-compiled [viaduct] instance, [cracInjector], and standalone [koin]
  * container are all created by the entry point in [CracMain] before the Ktor
  * server starts. Koin is managed externally (not as a Ktor plugin) so that
- * singletons survive CRaC checkpoint/restore independently of Netty.
+ * singletons survive CRaC checkpoint/restore independently of the server.
  */
 fun Application.configureApplication(
     supabaseUrl: String,
