@@ -41,6 +41,9 @@ dependencies {
     implementation("io.insert-koin:koin-ktor:4.1.1")
     implementation("io.insert-koin:koin-logger-slf4j:4.1.1")
 
+    // CRaC (Coordinated Restore at Checkpoint) for fast startup
+    implementation("org.crac:crac:1.5.0")
+
     // Supabase Kotlin client (version 3.x uses BOM)
     implementation(platform("io.github.jan-tennert.supabase:bom:3.2.5"))
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
@@ -61,7 +64,7 @@ dependencies {
 }
 
 application {
-    mainClass.set("io.ktor.server.netty.EngineMain")
+    mainClass.set("com.viaduct.CracMainKt")
 }
 
 tasks.withType<Test> {

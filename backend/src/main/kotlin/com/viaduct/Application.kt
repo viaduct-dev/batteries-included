@@ -1,9 +1,8 @@
 package com.viaduct
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.viaduct.config.DelegatingTenantCodeInjector
 import com.viaduct.config.KoinTenantCodeInjector
-import com.viaduct.config.RequestContext
 import com.viaduct.config.appModule
 import com.viaduct.models.GraphQLRequest
 import com.viaduct.plugins.GraphQLAuthentication
@@ -11,7 +10,6 @@ import com.viaduct.plugins.cachedRequestBody
 import com.viaduct.plugins.isPublicOperation
 import com.viaduct.plugins.requestContext
 import com.viaduct.services.AuthService
-import com.viaduct.services.GroupService
 import io.ktor.client.*
 import io.ktor.http.*
 import io.ktor.serialization.jackson.*
@@ -24,16 +22,11 @@ import io.ktor.server.routing.*
 import io.ktor.server.plugins.cors.routing.CORS
 import org.slf4j.event.Level
 import org.koin.ktor.plugin.Koin
-import org.koin.ktor.plugin.scope
-import org.koin.ktor.ext.get
 import org.koin.ktor.ext.getKoin
 import org.koin.logger.slf4jLogger
-import viaduct.service.BasicViaductFactory
-import viaduct.service.TenantRegistrationInfo
-import viaduct.service.SchemaRegistrationInfo
-import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.ExecutionInput as ViaductExecutionInput
 import viaduct.service.api.SchemaId
+import viaduct.service.api.Viaduct
 import java.util.Base64
 
 private val logger = org.slf4j.LoggerFactory.getLogger("Application")
@@ -107,32 +100,20 @@ fun deriveSupabaseUrl(explicitUrl: String?, projectId: String?, anonKey: String?
 }
 
 /**
- * Configure the Ktor application with GraphQL and authentication
+ * Configure the Ktor application with plugins, Koin DI, and GraphQL routing.
+ *
+ * The pre-compiled [viaduct] instance and [cracInjector] are created by the
+ * entry point in [CracMain] before the Ktor server starts. The injector's
+ * delegate is wired to the live Koin instance here so that resolver lookups
+ * work at request time.
  */
-fun Application.module() {
-    val supabaseKey = System.getenv("SUPABASE_ANON_KEY")
-    val supabaseProjectId = System.getenv("SUPABASE_PROJECT_ID")
-    val supabaseUrl = deriveSupabaseUrl(System.getenv("SUPABASE_URL"), supabaseProjectId, supabaseKey)
-
-    // Graceful handling of missing configuration
-    val configurationComplete = supabaseKey != null
-
-    if (!configurationComplete) {
-        logger.warn("=" .repeat(60))
-        logger.warn("SUPABASE_ANON_KEY is not set!")
-        logger.warn("The server will start but GraphQL queries will fail.")
-        logger.warn("Set SUPABASE_ANON_KEY environment variable to enable full functionality.")
-        logger.warn("Get your key from: https://supabase.com/dashboard → Settings → API → 'legacy anon, service_role API Keys'")
-        logger.warn("=" .repeat(60))
-    }
-
-    configureApplication(supabaseUrl, supabaseKey ?: "NOT_CONFIGURED", configurationComplete)
-}
-
-/**
- * Configure the application with the given Supabase credentials
- */
-fun Application.configureApplication(supabaseUrl: String, supabaseKey: String, configurationComplete: Boolean = true) {
+fun Application.configureApplication(
+    supabaseUrl: String,
+    supabaseKey: String,
+    configurationComplete: Boolean,
+    viaduct: Viaduct,
+    cracInjector: DelegatingTenantCodeInjector
+) {
     // Create object mapper for JSON serialization
     val objectMapper = jacksonObjectMapper()
 
@@ -233,32 +214,13 @@ fun Application.configureApplication(supabaseUrl: String, supabaseKey: String, c
         this.objectMapper = objectMapper
     }
 
-    // Get the Koin instance from the application context
+    // Wire the delegating injector to the live Koin instance so that
+    // the pre-compiled Viaduct schema can resolve resolvers at request time.
     val koin = getKoin()
+    cracInjector.delegate = KoinTenantCodeInjector(koin)
 
-    // Use Koin-based dependency injector for Viaduct resolvers
-    val koinInjector = KoinTenantCodeInjector(koin)
-
-    // Get services from Koin for application configuration
-    // Note: These are singletons needed at application startup for Viaduct configuration
+    // Get services from Koin for routing
     val authService = koin.get<AuthService>()
-    val groupService = koin.get<GroupService>()
-    val supabaseService = koin.get<SupabaseService>()
-
-    // Build Viaduct service using BasicViaductFactory
-    val viaduct = BasicViaductFactory.create(
-        schemaRegistrationInfo = SchemaRegistrationInfo(
-            scopes = listOf(
-                SchemaScopeInfo("public", setOf("public")),
-                SchemaScopeInfo("default", setOf("default", "public")),
-                SchemaScopeInfo("admin", setOf("default", "admin", "public"))
-            )
-        ),
-        tenantRegistrationInfo = TenantRegistrationInfo(
-            tenantPackagePrefix = "com.viaduct",
-            tenantCodeInjector = koinInjector
-        )
-    )
 
     routing {
         post("/graphql") {
@@ -331,5 +293,3 @@ fun Application.configureApplication(supabaseUrl: String, supabaseKey: String, c
         }
     }
 }
-
-// Entry point is now EngineMain configured via application.conf

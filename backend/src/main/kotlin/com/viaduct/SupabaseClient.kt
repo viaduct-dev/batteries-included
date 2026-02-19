@@ -108,16 +108,19 @@ open class SupabaseService(
 ) {
     // Admin client for token verification only
     // Uses the shared HttpClient injected from Koin for connection pooling
-    private val adminClient: SupabaseClient = createSupabaseClient(
-        supabaseUrl = supabaseUrl,
-        supabaseKey = supabaseKey
-    ) {
-        install(Auth) {
-            // Configure Auth module to use longer timeout for token verification
-            // This is needed because local Supabase can be slow
-        }
+    // Lazy-initialized to avoid opening HTTP connections at construction time (CRaC-safe)
+    private val adminClient: SupabaseClient by lazy {
+        createSupabaseClient(
+            supabaseUrl = supabaseUrl,
+            supabaseKey = supabaseKey
+        ) {
+            install(Auth) {
+                // Configure Auth module to use longer timeout for token verification
+                // This is needed because local Supabase can be slow
+            }
 
-        httpEngine = httpClient.engine
+            httpEngine = httpClient.engine
+        }
     }
 
     /**

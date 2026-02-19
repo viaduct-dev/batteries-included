@@ -16,6 +16,8 @@ services:
     dockerContext: .  # Root context to access schema/migrations
     healthCheckPath: /health
     plan: free
+    # Run database migrations before the new version goes live
+    preDeployCommand: /app/scripts/run-migrations.sh
     envVars:
       # Supabase credentials - user will be prompted for these during deploy
       # Project ID: Settings → General → Reference ID
