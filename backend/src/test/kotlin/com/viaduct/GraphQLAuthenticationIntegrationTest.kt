@@ -163,7 +163,7 @@ class GraphQLAuthenticationIntegrationTest : FunSpec({
 
             response.status shouldBe HttpStatusCode.Unauthorized
             val body = response.bodyAsText()
-            body shouldContain "Invalid or expired token"
+            body shouldContain "JWT token"
         }
     }
 

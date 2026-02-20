@@ -125,6 +125,11 @@ echo "=== Supabase Status ==="
 supabase status
 """
 
+[tasks.test]
+description = "Run backend tests (Gradle starts Supabase containers automatically)"
+dir = "backend"
+run = "./gradlew test"
+
 [tasks.diagnose-podman]
 description = "Diagnose Podman socket configuration"
 run = """
