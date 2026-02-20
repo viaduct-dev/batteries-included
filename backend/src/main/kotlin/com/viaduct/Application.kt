@@ -194,11 +194,7 @@ fun Application.configureApplication(
         }
     }
 
-    // Register shutdown hook to close HttpClient properly
     val httpClient = koin.getOrNull<HttpClient>()
-    monitor.subscribe(ApplicationStopped) {
-        httpClient?.close()
-    }
 
     // Get services from external Koin for the auth plugin and routing
     val authService = koin.get<AuthService>()

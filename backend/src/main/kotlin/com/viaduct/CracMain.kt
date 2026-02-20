@@ -8,11 +8,8 @@ import com.viaduct.services.AuthService
 import com.viaduct.services.GroupService
 import com.viaduct.services.UserService
 import io.ktor.client.HttpClient
-import io.ktor.http.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
 import org.crac.Core
 import org.koin.dsl.koinApplication
 import org.koin.logger.slf4jLogger
@@ -24,26 +21,28 @@ import viaduct.service.TenantRegistrationInfo
 private val logger = org.slf4j.LoggerFactory.getLogger("CracMain")
 
 /**
- * Application entry point.
+ * Application entry point with CRaC-optimized startup.
  *
- * Startup is split into three phases so that as much initialization as
- * possible is captured in a CRaC checkpoint image. On a JVM without CRaC
- * (or when `-Dcrac.checkpoint` is not set) the checkpoint call is a no-op
- * and all three phases run sequentially as a normal startup.
+ * Startup is split into phases to maximize what the CRaC checkpoint captures:
  *
  * 1. **Pre-initialization** — Compile the Viaduct GraphQL schema, start a
- *    standalone Koin container with all singletons (services, resolvers,
- *    HTTP clients), and wire the [DelegatingTenantCodeInjector]. No
- *    sockets are opened.
+ *    standalone Koin container, and eagerly resolve all singletons.
  *
- * 2. **Checkpoint / Restore** — If `-Dcrac.checkpoint` is set the JVM
- *    writes a CRaC image and exits. On restore the process resumes here
- *    with the compiled schema, all loaded classes, and all Koin singletons
- *    already in memory.
+ * 2. **Server start** — Create and start the Ktor CIO server. This runs
+ *    [configureApplication] which installs all plugins (CORS, auth, content
+ *    negotiation, routing). The fully-configured Application and all CIO
+ *    classes are now in the heap.
  *
- * 3. **Server start** — The Ktor CIO server is created and binds its
- *    port. Because Koin is already initialized, only the lightweight Ktor
- *    plugin installation and port bind happen here.
+ * 3. **Checkpoint / Restore** — [CracServer.beforeCheckpoint] stops the CIO
+ *    engine (unbinds port) while preserving the Application. The checkpoint
+ *    captures everything: compiled schema, Koin singletons, Ktor Application
+ *    with all plugins and routes, and loaded CIO classes.
+ *
+ *    On restore, [CracServer.afterRestore] creates a fresh CIO engine that
+ *    reuses the existing Application — only port binding happens.
+ *    [configureApplication] does NOT run again.
+ *
+ * On a JVM without CRaC, all phases run sequentially as a normal startup.
  */
 fun main() {
     // ── Phase 1: Pre-initialization (captured in checkpoint) ────────────
@@ -102,38 +101,61 @@ fun main() {
 
     logger.info("Koin container initialized")
 
-    // Start and stop a throwaway CIO server to force class loading
-    // (coroutine dispatchers, HTTP codec, Ktor pipeline, etc.) into
-    // the checkpoint so restore doesn't pay class-loading costs.
-    logger.info("Warming up CIO class loading...")
-    val warmup = embeddedServer(CIO, port = 0, host = "127.0.0.1") {
-        routing { get("/") { call.respondText("warmup", ContentType.Text.Plain) } }
-    }.start(wait = false)
-    warmup.stop(0, 0)
-    logger.info("CIO warm-up complete")
+    // ── Phase 2: Start server (plugins + routes captured in checkpoint) ──
 
-    // ── Phase 2: Checkpoint ─────────────────────────────────────────────
+    val isCracCheckpoint = System.getProperty("crac.checkpoint") != null
 
-    if (System.getProperty("crac.checkpoint") != null) {
+    if (isCracCheckpoint) {
+        // CRaC path: start server, checkpoint, then block after restore.
+        //
+        // Starting the real server before checkpoint serves two purposes:
+        // 1. configureApplication() installs all plugins and routes into the
+        //    Application — captured in the checkpoint, never re-run on restore
+        // 2. CIO class loading is warmed up (no separate warmup server needed)
+
+        logger.info("Starting Ktor server on port $port (pre-checkpoint)...")
+
+        val server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
+            configureApplication(
+                supabaseUrl = supabaseUrl,
+                supabaseKey = supabaseKey ?: "NOT_CONFIGURED",
+                configurationComplete = configurationComplete,
+                viaduct = viaduct,
+                cracInjector = cracInjector,
+                koin = koin
+            )
+        }.start(wait = false)
+
+        logger.info("Server started, Application fully configured")
+
+        // Register CRaC resource. beforeCheckpoint() will stop only the engine;
+        // afterRestore() will create a new engine reusing the existing Application.
+        val cracServer = CracServer(server, port)
+
+        // ── Phase 3: Checkpoint ─────────────────────────────────────────
         logger.info("CRaC: Taking checkpoint...")
         Core.checkpointRestore()
+        // Execution resumes here after restore.
+        // CracServer.afterRestore() has already started a new engine.
         logger.info("CRaC: Restored from checkpoint")
+
+        // Block main thread on the restored engine
+        cracServer.blockUntilShutdown()
+
+    } else {
+        // Non-CRaC path: start normally with blocking.
+        // Used during local development (./gradlew run).
+        logger.info("Starting Ktor server on port $port")
+
+        embeddedServer(CIO, port = port, host = "0.0.0.0") {
+            configureApplication(
+                supabaseUrl = supabaseUrl,
+                supabaseKey = supabaseKey ?: "NOT_CONFIGURED",
+                configurationComplete = configurationComplete,
+                viaduct = viaduct,
+                cracInjector = cracInjector,
+                koin = koin
+            )
+        }.start(wait = true)
     }
-
-    // ── Phase 3: Start Ktor/CIO server ──────────────────────────────────
-    // Koin singletons survive in the heap from pre-checkpoint init.
-    // CIO is pure coroutine-based I/O — no native resources to recreate.
-
-    logger.info("Starting Ktor server on port $port")
-
-    embeddedServer(CIO, port = port, host = "0.0.0.0") {
-        configureApplication(
-            supabaseUrl = supabaseUrl,
-            supabaseKey = supabaseKey ?: "NOT_CONFIGURED",
-            configurationComplete = configurationComplete,
-            viaduct = viaduct,
-            cracInjector = cracInjector,
-            koin = koin
-        )
-    }.start(wait = true)
 }

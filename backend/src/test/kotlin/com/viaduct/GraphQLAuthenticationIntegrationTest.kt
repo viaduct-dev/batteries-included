@@ -1,6 +1,9 @@
 package com.viaduct
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.viaduct.config.DelegatingTenantCodeInjector
+import com.viaduct.config.KoinTenantCodeInjector
+import com.viaduct.config.appModule
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
@@ -16,6 +19,12 @@ import io.ktor.http.*
 import io.ktor.server.config.*
 import io.ktor.server.testing.*
 import kotlinx.coroutines.runBlocking
+import org.koin.dsl.koinApplication
+import org.koin.logger.slf4jLogger
+import viaduct.service.BasicViaductFactory
+import viaduct.service.SchemaRegistrationInfo
+import viaduct.service.SchemaScopeInfo
+import viaduct.service.TenantRegistrationInfo
 
 /**
  * Integration test for GraphQL authentication with Supabase.
@@ -34,6 +43,28 @@ class GraphQLAuthenticationIntegrationTest : FunSpec({
     val supabaseUrl = System.getenv("SUPABASE_URL") ?: "http://127.0.0.1:54321"
     val supabaseAnonKey = System.getenv("SUPABASE_ANON_KEY")
         ?: "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH"
+
+    // Initialize Viaduct and Koin (mirrors CracMain Phase 1)
+    val cracInjector = DelegatingTenantCodeInjector()
+
+    val viaduct = BasicViaductFactory.create(
+        schemaRegistrationInfo = SchemaRegistrationInfo(
+            scopes = listOf(
+                SchemaScopeInfo("public", setOf("public")),
+                SchemaScopeInfo("default", setOf("default", "public")),
+                SchemaScopeInfo("admin", setOf("default", "admin", "public"))
+            )
+        ),
+        tenantRegistrationInfo = TenantRegistrationInfo(
+            tenantPackagePrefix = "com.viaduct",
+            tenantCodeInjector = cracInjector
+        )
+    )
+
+    val koin = koinApplication {
+        slf4jLogger()
+        modules(appModule(supabaseUrl, supabaseAnonKey))
+    }.koin.also { cracInjector.delegate = KoinTenantCodeInjector(it) }
 
     // Create a Supabase client for test user authentication
     val supabaseClient = createSupabaseClient(
@@ -88,7 +119,14 @@ class GraphQLAuthenticationIntegrationTest : FunSpec({
     fun testWithApp(block: suspend ApplicationTestBuilder.() -> Unit) {
         testApplication {
             application {
-                configureApplication(supabaseUrl, supabaseAnonKey)
+                configureApplication(
+                    supabaseUrl = supabaseUrl,
+                    supabaseKey = supabaseAnonKey,
+                    configurationComplete = true,
+                    viaduct = viaduct,
+                    cracInjector = cracInjector,
+                    koin = koin
+                )
             }
             block()
         }
