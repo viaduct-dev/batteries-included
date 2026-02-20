@@ -14,7 +14,9 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .  # Root context to access schema/migrations
-    healthCheckPath: /health
+    # No healthCheckPath — service goes live as soon as the port is bound.
+    # With CRaC sub-second restore, this is nearly instant. Render still
+    # monitors the process and restarts on crash.
     plan: free
     envVars:
       # Supabase credentials - user will be prompted for these during deploy
