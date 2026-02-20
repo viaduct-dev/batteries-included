@@ -135,8 +135,9 @@ COPY --from=checkpoint /app/cr/ /app/cr/
 # This is a no-op file — no credentials leak into this layer.
 COPY --from=migrations /app/migrations-ran /tmp/migrations-ran
 
-# Expose port (Render sets PORT env var, defaults to 8080)
-EXPOSE 8080
+# Render injects PORT=10000 at runtime; the app reads it after CRaC restore.
+# EXPOSE is informational only — Render detects the actual listening port.
+EXPOSE 10000
 
 # JVM options for container environment
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 --add-opens java.base/java.lang=ALL-UNNAMED"
