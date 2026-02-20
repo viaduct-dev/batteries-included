@@ -204,22 +204,26 @@ The backend uses [CRaC](https://openjdk.org/projects/crac/) (Coordinated Restore
 2. **checkpoint** — Runs `CracMain` with `-Dcrac.checkpoint=true`, which:
    - Compiles the Viaduct GraphQL schema (expensive)
    - Initializes a standalone Koin container with all singletons (HttpClient, SupabaseService, AuthService, resolvers, etc.)
-   - Starts and stops a throwaway Netty server to force Netty class loading
+   - Starts the real CIO server — `configureApplication()` installs all plugins and routes
+   - `CracServer.beforeCheckpoint()` stops the CIO engine (unbinds port) while preserving the Application
    - Calls `Core.checkpointRestore()` — Warp snapshots the JVM heap and exits
 3. **migrations** — (optional) Runs database migrations if `SUPABASE_SERVICE_ROLE_KEY` is provided as a build arg. Ephemeral stage — credentials never appear in the final image.
 4. **runtime** — Restores from checkpoint with `java -XX:CRaCEngine=warp -XX:CRaCRestoreFrom=/app/cr`
 
-**Runtime restore flow** (`CracMain.kt`):
+**Runtime restore flow** (`CracMain.kt` + `CracServer.kt`):
 
-When the container starts, Warp deserializes the heap into a fresh JVM process. `Core.checkpointRestore()` returns, and the code resumes at Phase 3:
+When the container starts, Warp deserializes the heap into a fresh JVM process. `CracServer.afterRestore()` fires:
 
-1. Creates a new `embeddedServer(Netty, ...)` — only Ktor plugin installation and Netty port binding happen here
-2. The Koin singletons and Viaduct schema survive from the checkpoint in the heap
-3. `configureApplication()` installs CORS, auth, content negotiation, and routing, wiring them to the pre-existing Koin services
+1. Re-reads the `PORT` environment variable (the hosting platform may set it at runtime, after checkpoint)
+2. Creates a fresh `CIOApplicationEngine` via `CIO.create()` that reuses the existing Application — only port binding happens
+3. The Koin singletons, Viaduct schema, **and all Ktor plugins/routes** survive from the checkpoint in the heap
+4. `configureApplication()` does NOT run again — everything was captured pre-checkpoint
 
 **Key design decisions**:
 
-- **Koin is standalone** — not installed as a Ktor plugin. This decouples service lifecycle from the Netty server, allowing singletons to survive checkpoint/restore while Netty is created fresh.
+- **Application preserved across checkpoint** — `CracServer.beforeCheckpoint()` calls `server.engine.stop()` (not `server.stop()`) which unbinds the port but keeps the Application alive with all plugins, routes, and configured pipeline intact.
+- **PORT re-read at restore** — hosting platforms like Render inject `PORT` at runtime. Since env vars are read at checkpoint time and baked in, `afterRestore()` re-reads `PORT` from the environment to bind to the correct port.
+- **Koin is standalone** — not installed as a Ktor plugin. This decouples service lifecycle from the CIO server, allowing singletons to survive checkpoint/restore while the engine is created fresh.
 - **Auth plugin creates RequestContext directly** — instead of using Koin's request scope (`call.scope`), the `GraphQLAuthentication` plugin receives `AuthService`, `SupabaseService`, and `HttpClient` via its configuration and constructs `RequestContext` per-request.
 - **Supabase credentials can be baked in** — passed as Docker build args (`SUPABASE_ANON_KEY`, `SUPABASE_PROJECT_ID`, etc.) to the checkpoint stage. If not provided, the checkpoint still captures class loading and schema compilation.
 - **Warp exit code 137** — a successful Warp checkpoint exits with SIGKILL. The Dockerfile handles this with `test "$(ls -A /app/cr)"` to verify the checkpoint directory is non-empty.
@@ -228,7 +232,8 @@ When the container starts, Warp deserializes the heap into a fresh JVM process. 
 
 | File | Role |
 |------|------|
-| `CracMain.kt` | Entry point with 3-phase startup (pre-init, checkpoint, server start) |
+| `CracMain.kt` | Entry point with 2-phase startup (pre-init + server start, then checkpoint/restore) |
+| `CracServer.kt` | `org.crac.Resource` — stops engine before checkpoint, creates fresh engine after restore |
 | `DelegatingTenantCodeInjector.kt` | Swappable injector — allows Viaduct schema compilation before Koin exists |
 | `KoinModule.kt` | Defines all Koin singletons (services, resolvers, HTTP client) |
 | `Application.kt` | Configures Ktor plugins and routing, accepts external Koin instance |

@@ -49,11 +49,14 @@ class CracServer(
     }
 
     override fun afterRestore(context: Context<out Resource>) {
-        logger.info("CRaC: Restoring — creating fresh CIO engine on $host:$port")
+        // Re-read PORT from the environment — at checkpoint time it may not have
+        // been set, but the hosting platform (e.g. Render) injects it at runtime.
+        val runtimePort = System.getenv("PORT")?.toIntOrNull() ?: port
+        logger.info("CRaC: Restoring — creating fresh CIO engine on $host:$runtimePort")
 
         val config = CIOApplicationEngine.Configuration().apply {
             connector {
-                this.port = this@CracServer.port
+                this.port = runtimePort
                 this.host = this@CracServer.host
             }
         }
@@ -71,7 +74,7 @@ class CracServer(
         )
         restoredEngine!!.start(wait = false)
 
-        logger.info("CRaC: Engine restored and accepting connections on port $port")
+        logger.info("CRaC: Engine restored and accepting connections on port $runtimePort")
     }
 
     /**

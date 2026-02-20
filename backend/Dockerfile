@@ -13,7 +13,7 @@
 #   3. migrations – (optional) Runs DB migrations at build time if credentials
 #                   are provided as build args. This stage is NOT part of the
 #                   final image, so credentials never leak into image layers.
-#   4. runtime    – Restores from checkpoint and starts Ktor/Netty (sub-second)
+#   4. runtime    – Restores from checkpoint and starts Ktor/CIO (sub-second)
 
 # ── Stage 1: Build the application ──────────────────────────────────────
 FROM azul/zulu-openjdk:21 AS builder
