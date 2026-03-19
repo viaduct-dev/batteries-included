@@ -7,7 +7,7 @@ plugins {
 }
 
 viaductApplication {
-    modulePackagePrefix.set("com.viaduct")
+    modulePackagePrefix.set("com.example")
 }
 
 viaductModule {

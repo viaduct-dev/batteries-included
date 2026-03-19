@@ -1,0 +1,48 @@
+// EXAMPLE: Delete Checklist Item Resolver
+//
+// This file demonstrates how to implement a resource deletion resolver using the framework.
+//
+// KEY CONCEPTS DEMONSTRATED:
+// - Simple delete operation returning boolean
+// - Automatic policy enforcement via RLS
+// - Decoding GlobalID to internal UUID
+// - Error handling (exceptions bubble up automatically)
+//
+// TO USE THIS EXAMPLE:
+// 1. Copy to backend/src/main/kotlin/com/viaduct/resolvers/
+// 2. Rename to DeleteYourResourceResolver.kt
+// 3. Uncomment the code below
+// 4. Customize for your resource type
+
+/*
+package com.example.resolvers
+
+import com.example.resolvers.resolverbases.MutationResolvers
+import viaduct.api.Resolver
+
+/**
+ * Resolver for the deleteChecklistItem mutation.
+ * Deletes a checklist item.
+ *
+ * Authorization: Database RLS policies enforce that only group members can delete items.
+ * If the user is not authorized, Supabase will throw an error.
+ */
+@Resolver
+class DeleteChecklistItemResolver : MutationResolvers.DeleteChecklistItem() {
+    override suspend fun resolve(ctx: Context): Boolean {
+        val input = ctx.arguments.input
+
+        // Decode GlobalID to internal UUID
+        val itemId = input.id.internalID
+
+        val client = ctx.authenticatedClient
+
+        // Delete the item
+        // RLS policies will verify:
+        // - User is a member of the group that owns this item, OR
+        // - User is an admin (bypass)
+        // Returns true if successful, throws exception if not found or unauthorized
+        return client.deleteChecklistItem(itemId)
+    }
+}
+*/

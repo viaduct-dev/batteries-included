@@ -1,5 +1,14 @@
 # Repository Guidelines
 
+## Viaduct Documentation
+
+When looking for Viaduct documentation, check these sources in order:
+
+1. **https://viaduct.airbnb.tech/sitemap.xml** — official Viaduct documentation site. Use the sitemap to discover valid pages. Do NOT guess or fabricate paths under this domain.
+2. **https://github.com/airbnb/viaduct** — source code and README
+3. The `.graphqls` schema files and resolver classes in this project's `backend/src/main/` directory
+4. The example files under `backend/src/main/kotlin/com/example/examples/`
+
 ## Project Structure & Module Organization
 - `src/` houses the React + Vite UI (components, pages, shared `lib/`, hooks) with global styles in `index.css`.
 - `backend/` runs the Viaduct GraphQL service: Kotlin lives in `src/main/kotlin`, module schemas in each `viaduct/schema`, Gradle build files at the root.
