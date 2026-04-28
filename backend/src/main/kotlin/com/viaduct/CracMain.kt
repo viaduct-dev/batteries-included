@@ -1,6 +1,7 @@
 package com.viaduct
 
 import com.typesafe.config.ConfigFactory
+import com.viaduct.checkers.GroupMembershipCheckerExecutorFactory
 import com.viaduct.config.DelegatingTenantCodeInjector
 import com.viaduct.config.KoinTenantCodeInjector
 import com.viaduct.config.appModule
@@ -13,10 +14,10 @@ import io.ktor.server.engine.*
 import org.crac.Core
 import org.koin.dsl.koinApplication
 import org.koin.logger.slf4jLogger
-import viaduct.service.BasicViaductFactory
-import viaduct.service.SchemaRegistrationInfo
+import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
 import viaduct.service.SchemaScopeInfo
-import viaduct.service.TenantRegistrationInfo
+import viaduct.service.runtime.SchemaConfiguration
+import viaduct.service.runtime.StandardViaduct
 
 private val logger = org.slf4j.LoggerFactory.getLogger("CracMain")
 
@@ -47,26 +48,6 @@ private val logger = org.slf4j.LoggerFactory.getLogger("CracMain")
 fun main() {
     // ── Phase 1: Pre-initialization (captured in checkpoint) ────────────
 
-    logger.info("Pre-initializing Viaduct schema...")
-
-    val cracInjector = DelegatingTenantCodeInjector()
-
-    val viaduct = BasicViaductFactory.create(
-        schemaRegistrationInfo = SchemaRegistrationInfo(
-            scopes = listOf(
-                SchemaScopeInfo("public", setOf("public")),
-                SchemaScopeInfo("default", setOf("default", "public")),
-                SchemaScopeInfo("admin", setOf("default", "admin", "public"))
-            )
-        ),
-        tenantRegistrationInfo = TenantRegistrationInfo(
-            tenantPackagePrefix = "com.viaduct",
-            tenantCodeInjector = cracInjector
-        )
-    )
-
-    logger.info("Viaduct schema compiled")
-
     // Read environment variables (baked into checkpoint when built with Docker ARGs)
     val config = ConfigFactory.load()
     val port = config.getInt("ktor.deployment.port")
@@ -81,9 +62,10 @@ fun main() {
         logger.warn("SUPABASE_ANON_KEY is not set — GraphQL queries will fail")
     }
 
-    // Start Koin standalone (not tied to Ktor lifecycle) so singletons
-    // survive checkpoint/restore independently of the server.
+    // Start Koin first so GroupService is available before Viaduct calls the
+    // CheckerExecutorFactoryCreator lambda during build().
     logger.info("Initializing Koin container...")
+    val cracInjector = DelegatingTenantCodeInjector()
     val koin = koinApplication {
         slf4jLogger()
         modules(appModule(supabaseUrl, supabaseKey ?: "NOT_CONFIGURED"))
@@ -94,12 +76,34 @@ fun main() {
     koin.get<SupabaseService>()
     koin.get<AuthService>()
     koin.get<UserService>()
-    koin.get<GroupService>()
+    val groupService = koin.get<GroupService>()
 
     // Wire the delegating injector to the live Koin instance
     cracInjector.delegate = KoinTenantCodeInjector(koin)
 
     logger.info("Koin container initialized")
+
+    logger.info("Pre-initializing Viaduct schema...")
+
+    val scopes = listOf(
+        SchemaScopeInfo("public", setOf("public")),
+        SchemaScopeInfo("default", setOf("default", "public")),
+        SchemaScopeInfo("admin", setOf("default", "admin", "public"))
+    ).map { SchemaConfiguration.ScopeConfig(it.schemaId, it.scopesToApply ?: emptySet()) }
+
+    val viaduct = StandardViaduct.Builder()
+        .withTenantAPIBootstrapperBuilder(
+            ViaductTenantAPIBootstrapper.Builder()
+                .tenantPackagePrefix("com.viaduct")
+                .tenantCodeInjector(cracInjector)
+        )
+        .withSchemaConfiguration(SchemaConfiguration.fromResources(scopes = scopes.toSet()))
+        .withCheckerExecutorFactoryCreator { _ ->
+            GroupMembershipCheckerExecutorFactory(groupService)
+        }
+        .build()
+
+    logger.info("Viaduct schema compiled")
 
     // ── Phase 2: Start server (plugins + routes captured in checkpoint) ──
 
