@@ -17,22 +17,12 @@ viaductModule {
 dependencies {
     // Viaduct service-wiring for BasicViaductFactory and ViaductBuilder
     implementation(libs.viaduct.service.wiring)
-    // Viaduct framework APIs needed at compile time (transitive via service-wiring but
-    // deliberately excluded from compile classpath by the Viaduct gradle plugin).
-    // We need these to implement CheckerExecutorFactory and wire it via StandardViaduct.Builder.
-    compileOnly("com.airbnb.viaduct:engine-api:${libs.versions.viaduct.get()}")
-    compileOnly("com.airbnb.viaduct:service-api:${libs.versions.viaduct.get()}")
-    compileOnly("com.airbnb.viaduct:service-runtime:${libs.versions.viaduct.get()}")
-    compileOnly("com.airbnb.viaduct:shared-graphql:${libs.versions.viaduct.get()}")
-    compileOnly("com.airbnb.viaduct:tenant-api:${libs.versions.viaduct.get()}")
-    compileOnly("com.airbnb.viaduct:tenant-wiring:${libs.versions.viaduct.get()}")
+    // Fat jars bundling all Viaduct framework APIs needed at compile time.
+    compileOnly("com.airbnb.viaduct:api:${libs.versions.viaduct.get()}")
+    compileOnly("com.airbnb.viaduct:runtime:${libs.versions.viaduct.get()}")
     compileOnly("javax.inject:javax.inject:1")
-    testCompileOnly("com.airbnb.viaduct:engine-api:${libs.versions.viaduct.get()}")
-    testCompileOnly("com.airbnb.viaduct:service-api:${libs.versions.viaduct.get()}")
-    testCompileOnly("com.airbnb.viaduct:service-runtime:${libs.versions.viaduct.get()}")
-    testCompileOnly("com.airbnb.viaduct:shared-graphql:${libs.versions.viaduct.get()}")
-    testCompileOnly("com.airbnb.viaduct:tenant-api:${libs.versions.viaduct.get()}")
-    testCompileOnly("com.airbnb.viaduct:tenant-wiring:${libs.versions.viaduct.get()}")
+    testCompileOnly("com.airbnb.viaduct:api:${libs.versions.viaduct.get()}")
+    testCompileOnly("com.airbnb.viaduct:runtime:${libs.versions.viaduct.get()}")
     testCompileOnly("javax.inject:javax.inject:1")
 
     // Ktor server (upgraded to 3.2.0 for Koin 4.x compatibility)
