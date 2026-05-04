@@ -16,15 +16,18 @@ viaductModule {
 }
 
 dependencies {
-    // Viaduct service-wiring for BasicViaductFactory and ViaductBuilder
-    implementation(libs.viaduct.service.wiring)
-    // Fat jars bundling all Viaduct framework APIs needed at compile time.
+    // Fat jars for compile-time type-checking and code generation.
     compileOnly("com.airbnb.viaduct:api:${libs.versions.viaduct.get()}")
     compileOnly("com.airbnb.viaduct:runtime:${libs.versions.viaduct.get()}")
     compileOnly("javax.inject:javax.inject:1")
     testCompileOnly("com.airbnb.viaduct:api:${libs.versions.viaduct.get()}")
     testCompileOnly("com.airbnb.viaduct:runtime:${libs.versions.viaduct.get()}")
     testCompileOnly("javax.inject:javax.inject:1")
+    // Thin Viaduct wiring jars for runtime (compile-only fat jars cover compile-time).
+    // These go on both the production runtime classpath and test runtime classpath.
+    implementation("com.airbnb.viaduct.service:wiring:${libs.versions.viaduct.get()}")
+    implementation("com.airbnb.viaduct.engine:wiring:${libs.versions.viaduct.get()}")
+    implementation("com.airbnb.viaduct.tenant:wiring:${libs.versions.viaduct.get()}")
 
     // Ktor server (upgraded to 3.2.0 for Koin 4.x compatibility)
     implementation("io.ktor:ktor-server-core:3.2.0")
@@ -73,6 +76,12 @@ dependencies {
 
 application {
     mainClass.set("com.viaduct.CracMainKt")
+}
+
+// Multiple Viaduct submodules produce jars named "wiring-*.jar"; set EXCLUDE so the
+// distribution tasks don't fail when more than one lands in lib/.
+tasks.withType<AbstractArchiveTask>().configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 // Start local Supabase (Docker containers) if not already running.
