@@ -14,8 +14,7 @@ class GroupMembersResolver(
     private val groupService: GroupService
 ) : GroupResolvers.Members() {
     override suspend fun resolve(ctx: Context): List<GroupMember> {
-        // Access parent Group via objectValue
-        val groupId = ctx.objectValue.getId().internalID
+        val groupId = ctx.getObjectValue().getId().internalID
 
         val memberEntities = groupService.getGroupMembers(ctx.authenticatedClient, groupId)
 

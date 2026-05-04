@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlinJvm)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.viaduct.application)
     alias(libs.plugins.viaduct.module)
     kotlin("plugin.serialization") version "2.1.0"
