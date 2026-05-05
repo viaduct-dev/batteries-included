@@ -3,7 +3,7 @@ A group that contains resources and members.
 Users must be members of the group to access resources within it.
 This is a core framework concept for organizing access control.
 """
-type Group implements Node @scope(to: ["default"]) @requiresGroupMembership(groupIdField: "id") {
+type Group implements Node @scope(to: ["default"]) {
   """
   The unique identifier for the group.
   """
