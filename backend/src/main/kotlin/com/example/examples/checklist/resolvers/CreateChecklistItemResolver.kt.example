@@ -1,0 +1,86 @@
+// EXAMPLE: Create Checklist Item Resolver
+//
+// This file demonstrates how to implement a resource creation resolver using the framework.
+//
+// KEY CONCEPTS DEMONSTRATED:
+// - Using AuthenticatedSupabaseClient for database access
+// - Extracting user ID from context (automatically injected by framework)
+// - Decoding GlobalIDs to internal UUIDs using .internalID
+// - Creating database entities with foreign key relationships
+// - Mapping database entities to GraphQL types with GlobalIDs
+// - Automatic policy enforcement via RLS (no explicit checks needed in code)
+//
+// TO USE THIS EXAMPLE:
+// 1. Copy this file to backend/src/main/kotlin/com/viaduct/resolvers/
+// 2. Rename to CreateYourResourceResolver.kt
+// 3. Uncomment the code below
+// 4. Update package name, class name, and types for your resource
+// 5. Add corresponding database methods to SupabaseClient.kt
+//
+// PREREQUISITES:
+// - Database table created with RLS policies (see migration example)
+// - GraphQL schema defined with @scope and @requiresGroupMembership (see schema example)
+// - SupabaseClient methods implemented for your resource
+//
+// RELATED FILES:
+// - Schema: backend/src/main/viaduct/schema/examples/checklist/ChecklistItem.graphqls.example
+// - Migration: supabase/migrations/examples/checklist/99999999999999_checklist_example.sql
+// - Other resolvers: Update, Delete, Query resolvers in this directory
+
+/*
+package com.example.resolvers
+
+import com.example.resolvers.resolverbases.MutationResolvers
+import viaduct.api.Resolver
+import viaduct.api.grts.ChecklistItem
+
+/**
+ * Resolver for the createChecklistItem mutation.
+ * Creates a new checklist item in a group.
+ *
+ * Authorization: Database RLS policies enforce that only group members can create items.
+ * The policy checks is_group_member(group_id) OR is_admin() automatically.
+ */
+@Resolver
+class CreateChecklistItemResolver : MutationResolvers.CreateChecklistItem() {
+    override suspend fun resolve(ctx: Context): ChecklistItem {
+        val input = ctx.arguments.input
+
+        // Get the authenticated user ID from context
+        // This is automatically populated by the framework from the JWT token
+        val userId = ctx.userId
+
+        // Decode the GlobalID to get the internal UUID
+        // GlobalIDs are base64-encoded "TypeName:uuid" strings
+        // The .internalID property extracts just the UUID portion
+        val groupId = input.groupId.internalID
+
+        // Get the authenticated Supabase client from context
+        // This client automatically includes the user's JWT token for RLS enforcement
+        val client = ctx.authenticatedClient
+
+        // Call the database method to create the item
+        // RLS policies will automatically verify:
+        // - User is a member of the specified group, OR
+        // - User is an admin (bypass)
+        // If neither condition is met, Supabase will throw an error
+        val itemEntity = client.createChecklistItem(
+            title = input.title,
+            userId = userId,
+            groupId = groupId
+        )
+
+        // Map the database entity to a GraphQL type
+        // Use ctx.globalIDFor() to convert internal UUIDs to GlobalIDs
+        return ChecklistItem.Builder(ctx)
+            .id(ctx.globalIDFor(ChecklistItem.Reflection, itemEntity.id))
+            .title(itemEntity.title)
+            .completed(itemEntity.completed)
+            .userId(itemEntity.user_id)
+            .groupId(itemEntity.group_id)
+            .createdAt(itemEntity.created_at)
+            .updatedAt(itemEntity.updated_at)
+            .build()
+    }
+}
+*/

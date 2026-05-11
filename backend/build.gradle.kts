@@ -7,7 +7,7 @@ plugins {
 }
 
 viaductApplication {
-    modulePackagePrefix.set("com.viaduct")
+    modulePackagePrefix.set("com.example")
 }
 
 viaductModule {
@@ -71,7 +71,7 @@ dependencies {
 }
 
 application {
-    mainClass.set("com.viaduct.CracMainKt")
+    mainClass.set("com.example.CracMainKt")
 }
 
 // Start local Supabase (Docker containers) if not already running.
