@@ -2,7 +2,7 @@ package com.example.resolvers
 
 import com.example.resolvers.resolverbases.QueryResolvers
 import com.example.services.GroupService
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.api.grts.Group
 
 /**

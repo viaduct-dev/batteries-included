@@ -2,7 +2,7 @@ package com.example.resolvers
 
 import com.example.resolvers.resolverbases.MutationResolvers
 import com.example.services.AuthService
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.api.grts.AuthSession
 import viaduct.api.grts.AuthUser
 

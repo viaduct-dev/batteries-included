@@ -2,7 +2,7 @@ package com.example.resolvers
 
 import com.example.resolvers.resolverbases.GroupResolvers
 import com.example.services.GroupService
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import viaduct.api.grts.GroupMember
 
 /**
@@ -14,8 +14,7 @@ class GroupMembersResolver(
     private val groupService: GroupService
 ) : GroupResolvers.Members() {
     override suspend fun resolve(ctx: Context): List<GroupMember> {
-        // Access parent Group via objectValue
-        val groupId = ctx.objectValue.getId().internalID
+        val groupId = ctx.getObjectValue().getId().internalID
 
         val memberEntities = groupService.getGroupMembers(ctx.authenticatedClient, groupId)
 

@@ -2,7 +2,7 @@ package com.example.resolvers
 
 import com.example.resolvers.resolverbases.MutationResolvers
 import com.example.services.GroupService
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 /**
  * Resolver for the removeGroupMember mutation.

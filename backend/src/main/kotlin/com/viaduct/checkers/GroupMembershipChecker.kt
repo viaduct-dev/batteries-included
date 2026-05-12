@@ -1,7 +1,7 @@
 package com.viaduct.checkers
 
-import com.viaduct.config.RequestContext
-import com.viaduct.services.GroupService
+import com.example.config.RequestContext
+import com.example.services.GroupService
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineExecutionContext

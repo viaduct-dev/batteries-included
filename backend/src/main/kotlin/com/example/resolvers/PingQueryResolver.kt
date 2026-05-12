@@ -1,7 +1,7 @@
 package com.example.resolvers
 
 import com.example.resolvers.resolverbases.QueryResolvers
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import java.time.Instant
 
 /**

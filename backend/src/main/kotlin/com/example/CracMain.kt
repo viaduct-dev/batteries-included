@@ -1,7 +1,7 @@
 package com.example
 
 import com.typesafe.config.ConfigFactory
-import com.example.checkers.GroupMembershipCheckerExecutorFactory
+import com.viaduct.checkers.GroupMembershipCheckerExecutorFactory
 import com.example.config.DelegatingTenantCodeInjector
 import com.example.config.KoinTenantCodeInjector
 import com.example.config.appModule
@@ -89,7 +89,7 @@ fun main() {
         SchemaScopeInfo("public", setOf("public")),
         SchemaScopeInfo("default", setOf("default", "public")),
         SchemaScopeInfo("admin", setOf("default", "admin", "public"))
-    ).map { SchemaConfiguration.ScopeConfig(it.schemaId, it.scopesToApply ?: emptySet()) }
+    ).map { SchemaConfiguration.ScopeConfig(it.schemaId.id, it.scopesToApply ?: emptySet()) }
 
     val viaduct = StandardViaduct.Builder()
         .withTenantAPIBootstrapperBuilder(
