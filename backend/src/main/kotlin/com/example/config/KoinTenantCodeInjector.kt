@@ -1,7 +1,7 @@
 package com.example.config
 
 import org.koin.core.Koin
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 import javax.inject.Provider
 import kotlin.reflect.KClass
 
@@ -13,13 +13,13 @@ import kotlin.reflect.KClass
  */
 class KoinTenantCodeInjector(
     private val koin: Koin
-) : TenantCodeInjector {
+) : CodeInjector {
     @Suppress("UNCHECKED_CAST")
     override fun <T> getProvider(clazz: Class<T>): Provider<T> {
         return Provider {
-            // Convert Java Class to Kotlin KClass and get instance from Koin
             val kClass = (clazz as Class<Any>).kotlin as KClass<Any>
             koin.get(kClass, null) as T
         }
     }
+
 }

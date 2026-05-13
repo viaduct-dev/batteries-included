@@ -2,14 +2,12 @@ val viaductVersion: String by settings
 
 pluginManagement {
     repositories {
-        mavenLocal()
         gradlePluginPortal()
     }
 }
 
 dependencyResolutionManagement {
     repositories {
-        mavenLocal()
         mavenCentral()
     }
     versionCatalogs {

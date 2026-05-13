@@ -2,7 +2,7 @@ package com.example.resolvers
 
 import com.example.resolvers.resolverbases.MutationResolvers
 import com.example.services.UserService
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 
 @Resolver
 class SetUserAdminResolver(

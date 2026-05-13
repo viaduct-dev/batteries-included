@@ -3,7 +3,7 @@ package com.example.resolvers
 import viaduct.api.grts.User
 import com.example.resolvers.resolverbases.QueryResolvers
 import com.example.services.UserService
-import viaduct.api.Resolver
+import viaduct.api.resolver.Resolver
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 

@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlinJvm)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.viaduct.application)
     alias(libs.plugins.viaduct.module)
     kotlin("plugin.serialization") version "2.1.0"
@@ -15,13 +16,15 @@ viaductModule {
 }
 
 dependencies {
-    // Viaduct service-wiring for BasicViaductFactory and ViaductBuilder
-    implementation(libs.viaduct.service.wiring)
-    // Fat jars bundling all Viaduct framework APIs needed at compile time.
+    // Fat jars: api/runtime for compile-time types; runtime also provides all Viaduct
+    // classes at runtime (single shadow jar avoids duplicate wiring-*.jar names in distTar).
     compileOnly("com.airbnb.viaduct:api:${libs.versions.viaduct.get()}")
     compileOnly("com.airbnb.viaduct:runtime:${libs.versions.viaduct.get()}")
+    compileOnly("com.airbnb.viaduct:buildtime:${libs.versions.viaduct.get()}")
+    implementation("com.airbnb.viaduct:runtime:${libs.versions.viaduct.get()}")
     compileOnly("javax.inject:javax.inject:1")
     testCompileOnly("com.airbnb.viaduct:api:${libs.versions.viaduct.get()}")
+    testImplementation("com.airbnb.viaduct:api:${libs.versions.viaduct.get()}")
     testCompileOnly("com.airbnb.viaduct:runtime:${libs.versions.viaduct.get()}")
     testCompileOnly("javax.inject:javax.inject:1")
 

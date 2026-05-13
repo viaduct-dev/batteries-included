@@ -1,10 +1,10 @@
 package com.example.config
 
-import viaduct.service.api.spi.TenantCodeInjector
+import viaduct.service.api.spi.CodeInjector
 import javax.inject.Provider
 
 /**
- * A TenantCodeInjector that delegates to a swappable underlying injector.
+ * A CodeInjector that delegates to a swappable underlying injector.
  *
  * Used for CRaC support: the Viaduct factory is created with this injector
  * before Koin is initialized (to capture expensive schema compilation in the
@@ -15,9 +15,9 @@ import javax.inject.Provider
  * so they are safe to construct before the delegate is set — as long as
  * [Provider.get] is not called until after wiring.
  */
-class DelegatingTenantCodeInjector : TenantCodeInjector {
+class DelegatingTenantCodeInjector : CodeInjector {
     @Volatile
-    var delegate: TenantCodeInjector? = null
+    var delegate: CodeInjector? = null
 
     override fun <T> getProvider(clazz: Class<T>): Provider<T> {
         return Provider {
@@ -30,4 +30,5 @@ class DelegatingTenantCodeInjector : TenantCodeInjector {
             d.getProvider(clazz).get()
         }
     }
+
 }
