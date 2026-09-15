@@ -22,8 +22,7 @@ This backend uses [Viaduct](https://github.com/airbnb/viaduct), a composable Gra
 `gradle.properties` selects the Viaduct and PG Persistence versions. Both the
 `dev.viaduct.pg-persistence` plugin and `dev.viaduct.persistence:runtime` dependency
 use `pgPersistenceVersion` and resolve from Maven Central's snapshot repository.
-The runtime is packaged with the application; the plugin is available but not yet
-applied. No local persistence checkout or
+The plugin is applied and the runtime is packaged with the application. No local persistence checkout or
 `mavenLocal()` publication is required.
 
 This installs the snapshot from [PG Persistence PR #14](https://github.com/viaduct-dev/pg-persistence/pull/14),
@@ -31,11 +30,16 @@ including its batch-error, transaction, and union/interface support. See the
 [library README](https://github.com/viaduct-dev/pg-persistence/blob/feat/union-interface-support/README.md)
 for its APIs.
 
-Dependency installation does not migrate the existing database calls or apply
-generated migrations. Applying the plugin currently fails because `Group.members`
-is resolver-backed rather than database-owned. The current resolvers still use
-the Supabase database client; converting the schema, resolvers, and resource examples is tracked in
-[KAN-21](https://viaduct-dev.atlassian.net/browse/KAN-21).
+Group and GroupMember node resolvers use `DbClient`. Mutation resolvers explicitly
+convert `ctx.arguments.input.toPgGraphqlInsert()`, call the library's `PgGraphqlClient`,
+and return a node reference. They retain the existing direct-object mutation response shape.
+Applications with a payload wrapper can instead use `dbClient.entity<T>().insert(ctx, input)`.
+
+Database requests, including the application-owned user administration functions, go to
+`/graphql/v1`. Authentication still uses Supabase Auth. See
+[PG Persistence setup and migration](../docs/PG_PERSISTENCE.md) for migration requirements,
+configuration, authorization and testing, and [Adding a resource](../docs/IMPLEMENTING_A_RESOURCE.md)
+for schema and resolver examples.
 
 ## Quick Start
 
@@ -52,11 +56,11 @@ export SUPABASE_ANON_KEY=your-anon-key
 ./gradlew run
 ```
 
-The server will start on `http://localhost:8080`.
+The server will start on `http://localhost:10000`.
 
 ### 3. Access GraphiQL
 
-Open your browser to [http://localhost:8080/graphiql](http://localhost:8080/graphiql)
+Open your browser to [http://localhost:10000/graphiql](http://localhost:10000/graphiql)
 
 ### 4. Try Example Queries
 
@@ -103,7 +107,7 @@ mutation {
 backend/
 ├── src/main/
 │   ├── kotlin/                 # Application, resolvers, services
-│   │   └── com/viaduct/
+│   │   └── com/example/
 │   │       ├── Application.kt  # Ktor entry point
 │   │       ├── SupabaseClient.kt # Supabase integration
 │   │       └── resolvers/      # GraphQL resolvers

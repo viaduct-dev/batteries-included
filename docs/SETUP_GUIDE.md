@@ -2,6 +2,11 @@
 
 This guide walks you through deploying the Viaduct Batteries Included template to [Render.com](https://render.com) using a Render Blueprint, with [Supabase](https://supabase.com) as the database backend.
 
+Database access uses the published pg-persistence library and Supabase's `/graphql/v1` endpoint.
+Enable pg_graphql with SQL-function support (the local configuration uses PostgreSQL 17).
+For an existing installation, read [the persistence upgrade notes](PG_PERSISTENCE.md#existing-database-upgrade)
+and back up the database before deploying the new migrations. Supabase Auth is unchanged.
+
 ## Prerequisites
 
 - A [GitHub](https://github.com) account

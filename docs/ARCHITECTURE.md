@@ -6,12 +6,15 @@
 React Frontend (Vite)          Viaduct Backend (Kotlin/Ktor)       Supabase PostgreSQL
 port 5173                      port 10000                          port 54321
 
-  GraphQL queries/mutations       Supabase Kotlin Client              RLS policies
-  Authorization: Bearer <jwt>     authenticatedClient per request     enforce group membership
+  GraphQL queries/mutations       pg-persistence → pg_graphql          RLS policies
+  Authorization: Bearer <jwt>     user credentials per request         enforce group membership
   X-User-Id: <uuid>
 ```
 
-The frontend sends GraphQL requests to the Viaduct backend, which creates an authenticated Supabase client per request using the user's JWT. Supabase row-level security policies enforce access control at the database level.
+The frontend sends GraphQL requests to Viaduct. Its resolvers use pg-persistence to query and mutate
+PostgreSQL through pg_graphql with the user's JWT. Viaduct checker executors and the existing database
+policies enforce application access rules. Supabase Auth remains separate. See
+[PG Persistence setup](PG_PERSISTENCE.md) for the library boundary, migrations and error behavior.
 
 ## Services
 

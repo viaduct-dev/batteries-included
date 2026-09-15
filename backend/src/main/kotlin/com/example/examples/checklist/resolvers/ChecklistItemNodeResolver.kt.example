@@ -1,0 +1,16 @@
+package com.example.resolvers
+
+import com.example.resolvers.resolverbases.NodeResolvers
+import dev.viaduct.persistence.runtime.db.DbClient
+import viaduct.api.grts.ChecklistItem
+import viaduct.api.resolver.Resolver
+
+@Resolver
+class ChecklistItemNodeResolver(private val dbClient: DbClient) : NodeResolvers.ChecklistItem() {
+    override suspend fun resolve(ctx: Context): ChecklistItem =
+        dbClient.fetchByInternalId(
+            ctx, "checklistItemCollection", ctx.id.internalID,
+            ctx.ownedSelections().selectionSetFor(ChecklistItem.Reflection),
+            ctx.selections().selectionSetFor(ChecklistItem.Reflection),
+        )
+}
