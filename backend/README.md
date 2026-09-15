@@ -17,6 +17,26 @@ This backend uses [Viaduct](https://github.com/airbnb/viaduct), a composable Gra
   - `SUPABASE_URL`: Your Supabase project URL
   - `SUPABASE_ANON_KEY`: Your Supabase anonymous key
 
+## PG Persistence snapshot
+
+`gradle.properties` selects the Viaduct and PG Persistence versions. Both the
+`dev.viaduct.pg-persistence` plugin and `dev.viaduct.persistence:runtime` dependency
+use `pgPersistenceVersion` and resolve from Maven Central's snapshot repository.
+The runtime is packaged with the application; the plugin is available but not yet
+applied. No local persistence checkout or
+`mavenLocal()` publication is required.
+
+This installs the snapshot from [PG Persistence PR #14](https://github.com/viaduct-dev/pg-persistence/pull/14),
+including its batch-error, transaction, and union/interface support. See the
+[library README](https://github.com/viaduct-dev/pg-persistence/blob/feat/union-interface-support/README.md)
+for its APIs.
+
+Dependency installation does not migrate the existing database calls or apply
+generated migrations. Applying the plugin currently fails because `Group.members`
+is resolver-backed rather than database-owned. The current resolvers still use
+the Supabase database client; converting the schema, resolvers, and resource examples is tracked in
+[KAN-21](https://viaduct-dev.atlassian.net/browse/KAN-21).
+
 ## Quick Start
 
 ### 1. Set environment variables

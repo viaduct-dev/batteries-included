@@ -1,23 +1,12 @@
 package com.example.services
 
 import com.example.AuthenticatedSupabaseClient
-import com.example.SupabaseService
 import com.example.UserEntity
 
 /**
  * Service for managing users and admin operations
  */
-class UserService(
-    private val supabaseService: SupabaseService
-) {
-    /**
-     * Get a user by ID
-     * Available to all authenticated users
-     */
-    suspend fun getUserById(authenticatedClient: AuthenticatedSupabaseClient, userId: String): UserEntity? {
-        return authenticatedClient.getUserById(userId)
-    }
-
+class UserService {
     /**
      * Get all users in the system
      * Only admins can call this

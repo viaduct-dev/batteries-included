@@ -1,6 +1,8 @@
 package com.example.config
 
 import com.example.SupabaseService
+import dev.viaduct.persistence.runtime.db.DbClient
+import dev.viaduct.persistence.runtime.db.DbRequestHeaders
 import com.example.resolvers.*
 import com.example.services.AuthService
 import com.example.services.GroupService
@@ -32,6 +34,11 @@ fun appModule(supabaseUrl: String, supabaseKey: String) = module {
 
     // Core services (singletons)
     single { SupabaseService(supabaseUrl, supabaseKey, get()) }
+    single {
+        DbClient(get(), "$supabaseUrl/graphql/v1", DbRequestHeaders { ctx ->
+            mapOf("Authorization" to "Bearer ${ctx.graphQLContext.accessToken}", "apikey" to supabaseKey)
+        })
+    }
     singleOf(::AuthService)
     singleOf(::UserService)
     singleOf(::GroupService)
@@ -59,5 +66,6 @@ fun appModule(supabaseUrl: String, supabaseKey: String) = module {
     singleOf(::RemoveGroupMemberResolver)
 
     // Resolvers - Group Fields
-    singleOf(::GroupMembersResolver)
+    singleOf(::GroupNodeResolver)
+    singleOf(::GroupMemberNodeResolver)
 }

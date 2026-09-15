@@ -1,31 +1,21 @@
+@file:OptIn(viaduct.apiannotations.ExperimentalApi::class)
 package com.example.resolvers
 
 import com.example.resolvers.resolverbases.QueryResolvers
-import com.example.services.GroupService
-import viaduct.api.resolver.Resolver
+import dev.viaduct.persistence.runtime.db.DbClient
 import viaduct.api.grts.Group
+import viaduct.api.resolver.Resolver
 
-/**
- * Resolver for the groups query.
- * Returns all groups that the authenticated user is a member of.
- */
 @Resolver
-class GroupsQueryResolver(
-    private val groupService: GroupService
-) : QueryResolvers.Groups() {
+class GroupsQueryResolver(private val dbClient: DbClient) : QueryResolvers.Groups() {
     override suspend fun resolve(ctx: Context): List<Group> {
-        // Use extension property - no need to know about RequestContext!
-        val groupEntities = groupService.getUserGroups(ctx.authenticatedClient)
-
-        return groupEntities.map { entity ->
-            Group.Builder(ctx)
-                .id(ctx.globalIDFor(Group.Reflection, entity.id))
-                .name(entity.name)
-                .description(entity.description)
-                .ownerId(entity.owner_id)
-                .createdAt(entity.created_at)
-                .updatedAt(entity.updated_at)
-                .build()
-        }
+        val groups = mutableListOf<Group>()
+        var cursor: String? = null
+        do {
+            val page = dbClient.fetchUuidConnection(ctx, "groupCollection", first = 100, after = cursor)
+            groups.addAll(page.edges.map { ctx.ref(ctx.globalIDFor(Group.Reflection, it.uuidId)) })
+            cursor = if (page.pageInfo.hasNextPage) requireNotNull(page.pageInfo.endCursor) else null
+        } while (cursor != null)
+        return groups
     }
 }

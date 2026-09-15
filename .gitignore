@@ -17,6 +17,7 @@ lerna-debug.log*
 # Backend (Kotlin/Gradle)
 backend/build/
 backend/.gradle/
+backend/.kotlin/
 backend/bin/
 backend/out/
 backend/.classpath

@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from './types';
+// Database access goes through Viaduct; expose only Supabase Auth to the frontend.
+type AuthClient = Pick<SupabaseClient, 'auth'>;
 
 // Try to get config from environment variables first (local development)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -11,28 +12,29 @@ const hasLocalConfig = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
 /**
  * Create Supabase client with the given config.
  */
-function createSupabaseClient(url: string, key: string): SupabaseClient<Database> {
-  return createClient<Database>(url, key, {
+function createSupabaseClient(url: string, key: string): AuthClient {
+  const client = createClient(url, key, {
     auth: {
       storage: localStorage,
       persistSession: true,
       autoRefreshToken: true,
     }
   });
+  return { auth: client.auth };
 }
 
 // Singleton instance - initialize immediately if we have local config
-let supabaseInstance: SupabaseClient<Database> | null = hasLocalConfig
+let supabaseInstance: AuthClient | null = hasLocalConfig
   ? createSupabaseClient(SUPABASE_URL!, SUPABASE_PUBLISHABLE_KEY!)
   : null;
-let initPromise: Promise<SupabaseClient<Database>> | null = null;
+let initPromise: Promise<AuthClient> | null = null;
 
 /**
  * Initialize Supabase client.
  * - Uses env vars if available (local development)
  * - Otherwise fetches config from backend (production)
  */
-export async function initSupabase(): Promise<SupabaseClient<Database>> {
+export async function initSupabase(): Promise<AuthClient> {
   // Return existing instance if already initialized
   if (supabaseInstance) {
     return supabaseInstance;
@@ -75,7 +77,7 @@ export async function initSupabase(): Promise<SupabaseClient<Database>> {
  * Get the Supabase client synchronously.
  * Throws if not initialized - call initSupabase() first.
  */
-export function getSupabase(): SupabaseClient<Database> {
+export function getSupabase(): AuthClient {
   if (!supabaseInstance) {
     throw new Error('Supabase not initialized. Call initSupabase() first.');
   }

@@ -3,7 +3,7 @@ A group that contains resources and members.
 Users must be members of the group to access resources within it.
 This is a core framework concept for organizing access control.
 """
-type Group implements Node @scope(to: ["default"]) {
+type Group implements Node @scope(to: ["default"]) @resolver(isSelective: true) {
   """
   The unique identifier for the group.
   """
@@ -22,28 +22,28 @@ type Group implements Node @scope(to: ["default"]) {
   """
   The user who created and owns this group.
   """
-  ownerId: String!
+  ownerId: ID!
 
   """
   All members of this group.
   """
-  members: [GroupMember!]! @resolver
+  members: [GroupMember!]!
 
   """
   When the group was created.
   """
-  createdAt: String!
+  createdAt: DateTime!
 
   """
   When the group was last updated.
   """
-  updatedAt: String!
+  updatedAt: DateTime!
 }
 
 """
 Represents a user's membership in a group.
 """
-type GroupMember @scope(to: ["default"]) {
+type GroupMember implements Node @scope(to: ["default"]) @resolver(isSelective: true) {
   """
   The unique identifier for this membership.
   """
@@ -52,17 +52,17 @@ type GroupMember @scope(to: ["default"]) {
   """
   The group this membership belongs to.
   """
-  groupId: String!
+  groupId: ID! @idOf(type: "Group")
 
   """
   The user who is a member.
   """
-  userId: String!
+  userId: ID!
 
   """
   When the user joined the group.
   """
-  joinedAt: String!
+  joinedAt: DateTime!
 }
 
 """

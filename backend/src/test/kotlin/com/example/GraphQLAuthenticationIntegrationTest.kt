@@ -89,7 +89,6 @@ class GraphQLAuthenticationIntegrationTest : FunSpec({
 
                 accessToken = supabaseClient.auth.currentAccessTokenOrNull()
                 println("Test user authenticated: $testEmail")
-                println("Access token obtained: ${accessToken?.take(20)}...")
             } catch (e: Exception) {
                 println("Failed to create test user: ${e.message}")
                 println("Attempting to sign in with existing user...")
