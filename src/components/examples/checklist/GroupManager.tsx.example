@@ -300,16 +300,9 @@ export function GroupManager() {
     }
 
     try {
-      // Extract UUID from GlobalID if needed
-      let userId = selectedUser.id;
-      if (userId.includes(':')) {
-        const decoded = atob(userId);
-        userId = decoded.split(':')[1];
-      }
-
       await executeGraphQL(ADD_GROUP_MEMBER, {
         groupId: selectedGroupId,
-        userId: userId,
+        userId: selectedUser.id,
       });
       toast({
         title: "Member added",
@@ -407,17 +400,6 @@ export function GroupManager() {
         description: error.message,
         variant: "destructive",
       });
-    }
-  };
-
-  // Helper function to decode GlobalID and extract UUID
-  const decodeGlobalId = (globalId: string): string => {
-    try {
-      const decoded = atob(globalId);
-      const parts = decoded.split(':');
-      return parts[1] || globalId;
-    } catch {
-      return globalId;
     }
   };
 
@@ -533,8 +515,7 @@ export function GroupManager() {
 
       <div className="grid gap-4">
         {groups.map((group) => {
-          const groupUuid = decodeGlobalId(group.id);
-          const groupItems = items.filter(item => item.groupId === groupUuid);
+          const groupItems = items.filter(item => item.groupId === group.id);
 
           return (
             <Card key={group.id}>

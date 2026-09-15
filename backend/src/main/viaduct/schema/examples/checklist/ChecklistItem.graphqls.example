@@ -1,199 +1,42 @@
-# EXAMPLE: Checklist Item Resource Schema
-#
-# This schema demonstrates how to define a resource type that integrates with
-# the framework's group-based access control system.
-#
-# KEY CONCEPTS DEMONSTRATED:
-# 1. Resource Type Definition
-#    - Implements Node interface for GlobalID support
-#    - @scope(to: ["default"]) makes it available to all authenticated users
-#    - @requiresGroupMembership enforces group access via policy executor
-#
-# 2. Input Types
-#    - Separate inputs for create, update, and delete operations
-#    - @idOf directive for type-safe GlobalID references
-#    - Optional fields for partial updates
-#
-# 3. Queries & Mutations
-#    - Top-level queries with @resolver directive
-#    - Mutations with automatic policy enforcement
-#    - @requiresGroupMembership can be applied at field or type level
-#
-# 4. Group Relationship
-#    - groupId field links to CheckboxGroup
-#    - Nullable for backward compatibility (legacy personal items)
-#    - Used by policy executor to verify access
-#
-# TO USE THIS EXAMPLE:
-# 1. Copy to backend/src/main/viaduct/schema/
-# 2. Rename to YourResource.graphqls
-# 3. Uncomment the GraphQL definitions below
-# 4. Customize types and fields for your resource
-# 5. Update @idOf references to match your type names
-# 6. Ensure resolvers are implemented (see resolver examples)
-#
-# RELATED FILES:
-# - Resolvers: backend/src/main/kotlin/com/viaduct/examples/checklist/resolvers/
-# - Migration: supabase/migrations/examples/checklist/99999999999999_checklist_example.sql
-# - Frontend: src/components/examples/checklist/
-
-# """
-# A checklist item that belongs to a checkbox group.
-# Only members of the group can access the item.
-# """
-# type ChecklistItem implements Node @scope(to: ["default"]) @requiresGroupMembership(groupIdField: "groupId") {
-#   """
-#   The unique identifier for the item.
-#   This is a GlobalID (base64-encoded "ChecklistItem:uuid").
-#   """
-#   id: ID!
-#
-#   """
-#   The title of the checklist item.
-#   """
-#   title: String!
-#
-#   """
-#   Whether the item is completed.
-#   """
-#   completed: Boolean!
-#
-#   """
-#   The ID of the user who created this item.
-#   """
-#   userId: String!
-#
-#   """
-#   The ID of the checkbox group this item belongs to.
-#   If null, this is a legacy personal item (not group-based).
-#   """
-#   groupId: String
-#
-#   """
-#   When the item was created.
-#   """
-#   createdAt: String!
-#
-#   """
-#   When the item was last updated.
-#   """
-#   updatedAt: String!
-# }
-#
-# """
-# Input for creating a new checklist item.
-# """
-# input CreateChecklistItemInput @scope(to: ["default"]) {
-#   """
-#   The title of the item.
-#   """
-#   title: String!
-#
-#   """
-#   The group ID this item belongs to.
-#   Required for group-based items.
-#   The @idOf directive ensures type-safe GlobalID references.
-#   """
-#   groupId: ID! @idOf(type: "CheckboxGroup")
-# }
-#
-# """
-# Input for updating a checklist item.
-# Supports partial updates - only provided fields will be updated.
-# """
-# input UpdateChecklistItemInput @scope(to: ["default"]) {
-#   """
-#   The ID of the item to update.
-#   """
-#   id: ID! @idOf(type: "ChecklistItem")
-#
-#   """
-#   The new completion status (optional).
-#   If not provided, completion status remains unchanged.
-#   """
-#   completed: Boolean
-#
-#   """
-#   The new title (optional).
-#   If not provided, title remains unchanged.
-#   """
-#   title: String
-# }
-#
-# """
-# Input for deleting a checklist item.
-# """
-# input DeleteChecklistItemInput @scope(to: ["default"]) {
-#   """
-#   The ID of the item to delete.
-#   """
-#   id: ID! @idOf(type: "ChecklistItem")
-# }
-#
-# extend type Query @scope(to: ["default"]) {
-#   """
-#   Get all checklist items from groups the user is a member of.
-#   RLS policies automatically filter results based on group membership.
-#   """
-#   checklistItems: [ChecklistItem!]! @resolver
-#
-#   """
-#   Get checklist items for a specific group.
-#   Only accessible if the user is a member of the group.
-#   The @requiresGroupMembership directive enforces access control.
-#   """
-#   checklistItemsByGroup(groupId: ID! @idOf(type: "CheckboxGroup")): [ChecklistItem!]! @resolver @requiresGroupMembership
-# }
-#
-# extend type Mutation @scope(to: ["default"]) {
-#   """
-#   Create a new checklist item in a group.
-#   Only members of the group can create items.
-#   RLS policies enforce this at the database level.
-#   """
-#   createChecklistItem(input: CreateChecklistItemInput!): ChecklistItem! @resolver
-#
-#   """
-#   Update a checklist item.
-#   Only members of the item's group can update it.
-#   The @requiresGroupMembership directive verifies access before execution.
-#   """
-#   updateChecklistItem(input: UpdateChecklistItemInput!): ChecklistItem! @resolver @requiresGroupMembership
-#
-#   """
-#   Delete a checklist item.
-#   Only members of the item's group can delete it.
-#   Returns true if successful, throws error if unauthorized.
-#   """
-#   deleteChecklistItem(input: DeleteChecklistItemInput!): Boolean! @resolver @requiresGroupMembership
-# }
-
-# IMPLEMENTATION NOTES:
-#
-# 1. The @scope(to: ["default"]) directive means these operations are available
-#    to all authenticated users (not just admins).
-#
-# 2. The @requiresGroupMembership directive can be applied at:
-#    - Type level: All operations require membership
-#    - Field level: Specific operations require membership
-#    - Query/Mutation level: Specific resolvers require membership
-#
-# 3. Multi-layer security:
-#    - Layer 1: @requiresGroupMembership in GraphQL (policy executor)
-#    - Layer 2: Database RLS policies (enforced by Supabase)
-#    - Layer 3: Frontend UI guards (optional, for UX)
-#
-# 4. Admin bypass:
-#    - Admins automatically bypass @requiresGroupMembership checks
-#    - RLS policies include "OR is_admin()" clauses
-#    - This allows admin users to access all resources
-#
-# 5. GlobalID system:
-#    - All IDs are base64-encoded "TypeName:uuid" strings
-#    - Frontend and backend decode as needed
-#    - @idOf directive provides type safety
-#
-# 6. Nullable vs Required:
-#    - groupId is nullable for backward compatibility
-#    - In new implementations, consider making it required
-#    - Null groupId means "personal item" (not group-based)
+# Optional example: copy into src/main/viaduct/schema without the .example suffix.
+type ChecklistItem implements Node @scope(to: ["default"]) @resolver(isSelective: true) {
+  id: ID!
+  title: String!
+  completed: Boolean!
+  groupId: ID! @idOf(type: "Group")
+  userId: ID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+input CreateChecklistItemInput @scope(to: ["default"]) {
+  title: String!
+  groupId: ID! @idOf(type: "Group")
+}
+input UpdateChecklistItemInput @scope(to: ["default"]) {
+  id: ID! @idOf(type: "ChecklistItem")
+  title: String
+  completed: Boolean
+}
+input DeleteChecklistItemInput @scope(to: ["default"]) {
+  id: ID! @idOf(type: "ChecklistItem")
+}
+type ChecklistItemPayload @scope(to: ["default"]) {
+  checklistItem: ChecklistItem!
+}
+type ChecklistMutationError @scope(to: ["default"]) {
+  message: String!
+}
+type DeleteChecklistItemPayload @scope(to: ["default"]) {
+  userErrors: [ChecklistMutationError!]!
+}
+extend type Group @scope(to: ["default"]) {
+  checklistItems: [ChecklistItem!]!
+}
+extend type Query @scope(to: ["default"]) {
+  checklistItems: [ChecklistItem!]! @resolver
+}
+extend type Mutation @scope(to: ["default"]) {
+  createChecklistItem(input: CreateChecklistItemInput!): ChecklistItemPayload! @resolver
+  updateChecklistItem(input: UpdateChecklistItemInput!): ChecklistItemPayload! @resolver
+  deleteChecklistItem(input: DeleteChecklistItemInput!): DeleteChecklistItemPayload! @resolver
+}

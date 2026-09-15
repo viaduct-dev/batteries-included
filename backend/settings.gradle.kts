@@ -1,11 +1,14 @@
 pluginManagement {
     val viaductVersion: String by settings
+    val pgPersistenceVersion: String by settings
 
     repositories {
+        maven("https://central.sonatype.com/repository/maven-snapshots/")
         gradlePluginPortal()
     }
     plugins {
         id("com.airbnb.viaduct.settings-gradle-plugin") version viaductVersion
+        id("dev.viaduct.pg-persistence") version pgPersistenceVersion
     }
 }
 
@@ -17,6 +20,7 @@ val viaductVersion: String by settings
 
 dependencyResolutionManagement {
     repositories {
+        maven("https://central.sonatype.com/repository/maven-snapshots/")
         mavenCentral()
     }
     versionCatalogs {

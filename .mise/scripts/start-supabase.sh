@@ -4,7 +4,9 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-PROJECT_ID="batteries-included"
+SUPABASE_WORKDIR="${SUPABASE_WORKDIR:-$PROJECT_ROOT}"
+PROJECT_ID="$(sed -n 's/^project_id = "\([^"]*\)"/\1/p' "$SUPABASE_WORKDIR/supabase/config.toml")"
+test -n "$PROJECT_ID"
 DB_CONTAINER="supabase_db_$PROJECT_ID"
 GATEWAY_CONTAINER="supabase_kong_$PROJECT_ID"
 PHASE="Podman startup"
@@ -34,14 +36,14 @@ DB_STATE="$(podman_api inspect --format '{{.State.Status}}' "$DB_CONTAINER" 2>/d
 if [ -n "$DB_STATE" ] && [ "$DB_STATE" != "running" ]; then
     PHASE="Supabase stale-container cleanup"
     echo "Found stale batteries-included containers (database: $DB_STATE)."
-    "$SCRIPT_DIR/supabase.sh" stop --workdir "$PROJECT_ROOT"
+    "$SCRIPT_DIR/supabase.sh" stop --workdir "$SUPABASE_WORKDIR"
 fi
 
 PHASE="Supabase startup"
-"$SCRIPT_DIR/supabase.sh" start --workdir "$PROJECT_ROOT" --exclude vector,logflare
+"$SCRIPT_DIR/supabase.sh" start --workdir "$SUPABASE_WORKDIR" --exclude vector,logflare
 
 PHASE="Local database migrations"
-"$SCRIPT_DIR/supabase.sh" migration up --local --workdir "$PROJECT_ROOT"
+"$SCRIPT_DIR/supabase.sh" migration up --local --workdir "$SUPABASE_WORKDIR"
 podman_api exec "$DB_CONTAINER" \
     psql -U postgres -d postgres -c "NOTIFY pgrst, 'reload schema';" >/dev/null
 

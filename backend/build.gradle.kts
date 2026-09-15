@@ -3,11 +3,15 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.viaduct.application)
     alias(libs.plugins.viaduct.module)
+    id("dev.viaduct.pg-persistence")
     kotlin("plugin.serialization") version "2.1.0"
     application
 }
 
+val pgPersistenceVersion: String by project
+
 dependencies {
+    implementation("dev.viaduct.persistence:runtime:$pgPersistenceVersion")
     // Keep the API/runtime available for compilation and package the buildtime fat jar
     // so service SPI classes are present without duplicate wiring jar names in installDist.
     compileOnly("com.airbnb.viaduct:api:${libs.versions.viaduct.get()}")
@@ -50,7 +54,6 @@ dependencies {
 
     // Supabase Kotlin client (version 3.x uses BOM)
     implementation(platform("io.github.jan-tennert.supabase:bom:3.2.5"))
-    implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation("io.github.jan-tennert.supabase:auth-kt")
     implementation(libs.ktor.client.cio)
     implementation(libs.java.jwt)

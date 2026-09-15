@@ -1,0 +1,75 @@
+package com.example
+
+import com.example.resolvers.*
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
+import org.koin.core.module.dsl.singleOf
+import org.koin.dsl.module
+
+class ChecklistPersistenceIntegrationTest : FunSpec({
+    val fixture = PersistenceFixture(module {
+        singleOf(::CreateChecklistItemResolver)
+        singleOf(::UpdateChecklistItemResolver)
+        singleOf(::DeleteChecklistItemResolver)
+        singleOf(::ChecklistItemsQueryResolver)
+        singleOf(::ChecklistItemNodeResolver)
+    })
+    lateinit var owner: AuthSessionResponse
+    lateinit var outsider: AuthSessionResponse
+    beforeSpec { owner = fixture.user(); outsider = fixture.user() }
+    afterSpec { fixture.close() }
+
+    test("the example inserts an input GRT and supplies its generated payload") {
+        fixture.withApp {
+            val groupId = fixture.createGroup(client, owner)["id"].asText()
+            val data = fixture.query(client, owner,
+                """mutation { createChecklistItem(input: {title: "First", groupId: "$groupId"}) {
+                  checklistItem { id title completed groupId userId createdAt }
+                } }""")
+            val item = data["createChecklistItem"]["checklistItem"]
+            item["completed"].asBoolean() shouldBe false
+            item["groupId"].asText() shouldBe groupId
+            val nested = fixture.query(client, owner,
+                """query { group(id: "$groupId") { checklistItems { id title } } }""")
+            nested["group"]["checklistItems"].single()["id"] shouldBe item["id"]
+        }
+    }
+
+    test("the example updates by typed ID and preserves omitted fields") {
+        fixture.withApp {
+            val groupId = fixture.createGroup(client, owner)["id"].asText()
+            val created = fixture.query(client, owner,
+                """mutation { createChecklistItem(input: {title: "Keep title", groupId: "$groupId"}) {
+                  checklistItem { id }
+                } }""")
+            val id = created["createChecklistItem"]["checklistItem"]["id"].asText()
+            val updated = fixture.query(client, owner,
+                """mutation { updateChecklistItem(input: {id: "$id", completed: true}) {
+                  checklistItem { title completed }
+                } }""")
+            updated["updateChecklistItem"]["checklistItem"]["title"].asText() shouldBe "Keep title"
+            updated["updateChecklistItem"]["checklistItem"]["completed"].asBoolean() shouldBe true
+            val denied = fixture.response(client, outsider,
+                """mutation { updateChecklistItem(input: {id: "$id", completed: false}) {
+                  checklistItem { id }
+                } }""")
+            denied["errors"].isArray shouldBe true
+        }
+    }
+
+    test("the example deletes without resolving an already deleted node") {
+        fixture.withApp {
+            val groupId = fixture.createGroup(client, owner)["id"].asText()
+            val created = fixture.query(client, owner,
+                """mutation { createChecklistItem(input: {title: "Delete", groupId: "$groupId"}) {
+                  checklistItem { id }
+                } }""")
+            val id = created["createChecklistItem"]["checklistItem"]["id"].asText()
+            val deleted = fixture.query(client, owner,
+                """mutation { deleteChecklistItem(input: {id: "$id"}) { userErrors { message } } }""")
+            deleted["deleteChecklistItem"]["userErrors"].size() shouldBe 0
+            val items = fixture.query(client, owner, "{ checklistItems { id } }")["checklistItems"]
+            items.none { it["id"].asText() == id } shouldBe true
+        }
+    }
+})

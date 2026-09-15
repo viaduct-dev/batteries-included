@@ -1,257 +1,33 @@
-// EXAMPLE: Checklist Item GraphQL Queries and Mutations
-//
-// This file demonstrates how to define GraphQL operations for a resource type
-// that integrates with the framework's group-based access control.
-//
-// KEY CONCEPTS DEMONSTRATED:
-// 1. Query Operations
-//    - Fetching all resources accessible to the user
-//    - Fetching resources filtered by group
-//    - Using GlobalID parameters
-//
-// 2. Mutation Operations
-//    - Creating resources with group association
-//    - Updating resources with partial data
-//    - Deleting resources
-//
-// 3. Response Shapes
-//    - Selecting only needed fields for performance
-//    - Including related data (group, user info)
-//    - Handling timestamps
-//
-// 4. Integration with executeGraphQL
-//    - Type-safe query execution
-//    - Error handling
-//    - Authentication headers (automatic)
-//
-// TO USE THIS EXAMPLE:
-// 1. Copy this file to src/lib/
-// 2. Rename to your-resource-queries.ts
-// 3. Uncomment the code below
-// 4. Customize queries for your resource type
-// 5. Import and use in your components
-//
-// PREREQUISITES:
-// - GraphQL schema defined (backend/src/main/viaduct/schema/)
-// - Resolvers implemented (backend/src/main/kotlin/.../resolvers/)
-// - Database table created with RLS policies
-// - executeGraphQL function available (src/lib/graphql-core.ts)
-//
-// RELATED FILES:
-// - Schema: backend/src/main/viaduct/schema/examples/checklist/ChecklistItem.graphqls.example
-// - Resolvers: backend/src/main/kotlin/com/viaduct/examples/checklist/resolvers/
-// - Components: src/components/examples/checklist/
+// Optional checklist queries. Copy into src/lib/graphql.ts after enabling the backend example.
+// Create/update now return the pg-persistence payload's checklistItem field.
+export const GET_CHECKLIST_ITEMS = `
+  query { checklistItems { id title completed groupId userId createdAt updatedAt } }
+`;
 
-// import { executeGraphQL } from '@/lib/graphql-core';
+export const GET_CHECKLIST_ITEMS_BY_GROUP = `
+  query ItemsByGroup($groupId: ID!) {
+    group(id: $groupId) { checklistItems { id title completed groupId } }
+  }
+`;
 
-// ============================================================================
-// QUERY OPERATIONS
-// ============================================================================
+export const CREATE_CHECKLIST_ITEM = `
+  mutation CreateItem($title: String!, $groupId: ID!) {
+    createChecklistItem(input: {title: $title, groupId: $groupId}) {
+      checklistItem { id title completed groupId userId createdAt updatedAt }
+    }
+  }
+`;
 
-// /**
-//  * Fetch all checklist items from groups the user is a member of.
-//  * RLS policies automatically filter results based on group membership.
-//  */
-// export const GET_CHECKLIST_ITEMS = `
-//   query GetChecklistItems {
-//     checklistItems {
-//       id
-//       title
-//       completed
-//       userId
-//       groupId
-//       createdAt
-//     }
-//   }
-// `;
+export const UPDATE_CHECKLIST_ITEM = `
+  mutation UpdateItem($id: ID!, $completed: Boolean, $title: String) {
+    updateChecklistItem(input: {id: $id, completed: $completed, title: $title}) {
+      checklistItem { id title completed groupId }
+    }
+  }
+`;
 
-// /**
-//  * Fetch checklist items for a specific group.
-//  * Only accessible if the user is a member of the specified group.
-//  */
-// export const GET_CHECKLIST_ITEMS_BY_GROUP = `
-//   query GetChecklistItemsByGroup($groupId: ID!) {
-//     checklistItemsByGroup(groupId: $groupId) {
-//       id
-//       title
-//       completed
-//       userId
-//       groupId
-//       createdAt
-//       updatedAt
-//     }
-//   }
-// `;
-
-// ============================================================================
-// MUTATION OPERATIONS
-// ============================================================================
-
-// /**
-//  * Create a new checklist item in a group.
-//  * Only members of the group can create items.
-//  */
-// export const CREATE_CHECKLIST_ITEM = `
-//   mutation CreateChecklistItem($title: String!, $groupId: ID!) {
-//     createChecklistItem(input: {
-//       title: $title
-//       groupId: $groupId
-//     }) {
-//       id
-//       title
-//       completed
-//       userId
-//       groupId
-//       createdAt
-//     }
-//   }
-// `;
-
-// /**
-//  * Update a checklist item.
-//  * Supports partial updates - only provided fields will be updated.
-//  * Only members of the item's group can update it.
-//  */
-// export const UPDATE_CHECKLIST_ITEM = `
-//   mutation UpdateChecklistItem($id: ID!, $completed: Boolean, $title: String) {
-//     updateChecklistItem(input: {
-//       id: $id
-//       completed: $completed
-//       title: $title
-//     }) {
-//       id
-//       title
-//       completed
-//       updatedAt
-//     }
-//   }
-// `;
-
-// /**
-//  * Delete a checklist item.
-//  * Only members of the item's group can delete it.
-//  * Returns true if successful.
-//  */
-// export const DELETE_CHECKLIST_ITEM = `
-//   mutation DeleteChecklistItem($id: ID!) {
-//     deleteChecklistItem(input: {
-//       id: $id
-//     })
-//   }
-// `;
-
-// ============================================================================
-// TYPESCRIPT INTERFACES
-// ============================================================================
-
-// /**
-//  * Type definitions for checklist items.
-//  * Match the GraphQL schema and response shapes.
-//  */
-
-// export interface ChecklistItem {
-//   id: string;           // GlobalID (base64-encoded "ChecklistItem:uuid")
-//   title: string;
-//   completed: boolean;
-//   userId: string;       // UUID of creator
-//   groupId: string;      // UUID of parent group
-//   createdAt: string;    // ISO 8601 timestamp
-//   updatedAt?: string;   // ISO 8601 timestamp (optional, for updates)
-// }
-
-// export interface ChecklistItemsResponse {
-//   checklistItems: ChecklistItem[];
-// }
-
-// export interface ChecklistItemResponse {
-//   createChecklistItem?: ChecklistItem;
-//   updateChecklistItem?: ChecklistItem;
-//   deleteChecklistItem?: boolean;
-// }
-
-// ============================================================================
-// USAGE EXAMPLES
-// ============================================================================
-
-// /**
-//  * Example: Fetch all checklist items
-//  */
-// async function fetchChecklistItems(): Promise<ChecklistItem[]> {
-//   const result = await executeGraphQL<ChecklistItemsResponse>(GET_CHECKLIST_ITEMS);
-//   return result.checklistItems;
-// }
-
-// /**
-//  * Example: Create a new checklist item
-//  */
-// async function createChecklistItem(title: string, groupId: string): Promise<ChecklistItem> {
-//   const result = await executeGraphQL<ChecklistItemResponse>(
-//     CREATE_CHECKLIST_ITEM,
-//     { title, groupId }
-//   );
-//   return result.createChecklistItem!;
-// }
-
-// /**
-//  * Example: Toggle item completion
-//  */
-// async function toggleChecklistItem(id: string, completed: boolean): Promise<ChecklistItem> {
-//   const result = await executeGraphQL<ChecklistItemResponse>(
-//     UPDATE_CHECKLIST_ITEM,
-//     { id, completed }
-//   );
-//   return result.updateChecklistItem!;
-// }
-
-// /**
-//  * Example: Delete a checklist item
-//  */
-// async function deleteChecklistItem(id: string): Promise<boolean> {
-//   const result = await executeGraphQL<ChecklistItemResponse>(
-//     DELETE_CHECKLIST_ITEM,
-//     { id }
-//   );
-//   return result.deleteChecklistItem!;
-// }
-
-// ============================================================================
-// IMPLEMENTATION NOTES
-// ============================================================================
-
-// GLOBALID HANDLING:
-// - All IDs in GraphQL are GlobalIDs (base64-encoded "TypeName:uuid")
-// - Frontend uses these directly (no need to decode)
-// - Backend automatically decodes when processing requests
-// - Use @idOf directive in schema to ensure type safety
-
-// ERROR HANDLING:
-// - executeGraphQL throws errors for network issues
-// - GraphQL errors are thrown with error messages
-// - Handle errors in components with try/catch
-// - Show user-friendly error messages in UI
-
-// PERFORMANCE:
-// - Only select fields you need in queries
-// - Consider pagination for large lists
-// - Use caching strategies (React Query, Apollo Client)
-// - Batch related operations when possible
-
-// AUTHORIZATION:
-// - All operations require authentication (JWT token)
-// - Group membership checked automatically via RLS
-// - Admin users can bypass group restrictions
-// - Unauthorized operations throw errors
-
-// REAL-TIME UPDATES:
-// - Consider using Supabase Realtime for live updates
-// - Listen to database changes and refetch queries
-// - Or use GraphQL subscriptions if implemented
-// - Update local state optimistically for better UX
-
-// BEST PRACTICES:
-// - Define TypeScript interfaces for all responses
-// - Validate input data before sending mutations
-// - Show loading states while queries execute
-// - Handle errors gracefully with user feedback
-// - Implement optimistic updates for mutations
-// - Use proper variable naming (camelCase)
+export const DELETE_CHECKLIST_ITEM = `
+  mutation DeleteItem($id: ID!) {
+    deleteChecklistItem(input: {id: $id}) { userErrors { message } }
+  }
+`;
