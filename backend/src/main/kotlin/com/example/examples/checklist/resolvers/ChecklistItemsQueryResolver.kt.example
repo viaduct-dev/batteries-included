@@ -1,21 +1,12 @@
-@file:OptIn(viaduct.apiannotations.ExperimentalApi::class)
 package com.example.resolvers
 
 import com.example.resolvers.resolverbases.QueryResolvers
-import dev.viaduct.persistence.runtime.db.DbClient
 import viaduct.api.grts.ChecklistItem
 import viaduct.api.resolver.Resolver
 
 @Resolver
-class ChecklistItemsQueryResolver(private val dbClient: DbClient) : QueryResolvers.ChecklistItems() {
-    override suspend fun resolve(ctx: Context): List<ChecklistItem> {
-        val items = mutableListOf<ChecklistItem>()
-        var cursor: String? = null
-        do {
-            val page = dbClient.fetchUuidConnection(ctx, "checklistItemCollection", first = 100, after = cursor)
-            items.addAll(page.edges.map { ctx.ref(ctx.globalIDFor(ChecklistItem.Reflection, it.uuidId)) })
-            cursor = if (page.pageInfo.hasNextPage) requireNotNull(page.pageInfo.endCursor) else null
-        } while (cursor != null)
-        return items
-    }
+class ChecklistItemsQueryResolver : QueryResolvers.ChecklistItems() {
+    override suspend fun resolve(ctx: Context): List<ChecklistItem> =
+        ctx.authenticatedClient.selectNodeIds("ChecklistItem")
+            .map { ctx.ref(ctx.globalIDFor(ChecklistItem.Reflection, it)) }
 }

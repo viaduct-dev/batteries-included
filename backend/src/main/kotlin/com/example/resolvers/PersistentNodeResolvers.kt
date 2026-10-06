@@ -11,8 +11,6 @@ class GroupNodeResolver(private val dbClient: DbClient) : NodeResolvers.Group() 
     override suspend fun resolve(ctx: Context): Group =
         dbClient.fetchByInternalId(
             ctx, "groupCollection", ctx.id.internalID,
-            ctx.ownedSelections().selectionSetFor(Group.Reflection),
-            ctx.selections().selectionSetFor(Group.Reflection),
         )
 }
 
@@ -21,7 +19,5 @@ class GroupMemberNodeResolver(private val dbClient: DbClient) : NodeResolvers.Gr
     override suspend fun resolve(ctx: Context): GroupMember =
         dbClient.fetchByInternalId(
             ctx, "groupMemberCollection", ctx.id.internalID,
-            ctx.ownedSelections().selectionSetFor(GroupMember.Reflection),
-            ctx.selections().selectionSetFor(GroupMember.Reflection),
         )
 }

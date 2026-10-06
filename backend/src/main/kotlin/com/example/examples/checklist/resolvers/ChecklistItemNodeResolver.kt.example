@@ -10,7 +10,5 @@ class ChecklistItemNodeResolver(private val dbClient: DbClient) : NodeResolvers.
     override suspend fun resolve(ctx: Context): ChecklistItem =
         dbClient.fetchByInternalId(
             ctx, "checklistItemCollection", ctx.id.internalID,
-            ctx.ownedSelections().selectionSetFor(ChecklistItem.Reflection),
-            ctx.selections().selectionSetFor(ChecklistItem.Reflection),
         )
 }

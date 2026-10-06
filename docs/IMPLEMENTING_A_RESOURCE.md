@@ -71,8 +71,8 @@ Use `hibernateSchemaDiff` against an existing database when preparing an upgrade
 
 ## Write the resolvers
 
-Inject the existing `DbClient` from Koin. A selective node resolver narrows its selections to
-the concrete type, including when the request reached the object through `node(id: ...)`:
+Inject the existing `DbClient` from Koin. The runtime takes owned selections from
+the selective node context, including requests through `node(id: ...)`:
 
 ```kotlin
 @Resolver
@@ -80,8 +80,6 @@ class ChecklistItemNodeResolver(private val dbClient: DbClient) : NodeResolvers.
     override suspend fun resolve(ctx: Context): ChecklistItem =
         dbClient.fetchByInternalId(
             ctx, "checklistItemCollection", ctx.id.internalID,
-            ctx.ownedSelections().selectionSetFor(ChecklistItem.Reflection),
-            ctx.selections().selectionSetFor(ChecklistItem.Reflection),
         )
 }
 ```
@@ -111,10 +109,13 @@ or a checker executor. Updates use the input's `@idOf(type: "ChecklistItem")` fi
 identifier; if several fields match, pass `identifierField` explicitly when converting.
 Omitted fields are unchanged; explicit null is sent to PostgreSQL and may violate a not-null constraint.
 
-For the list query, follow `GroupsQueryResolver`: fetch pages with `fetchUuidConnection` and return
-`ctx.ref(ctx.globalIDFor(ChecklistItem.Reflection, uuidId))` for each ID. Preserve cursors unchanged.
+For an unpaged list, follow `GroupsQueryResolver`: call the authenticated facade's
+`selectNodeIds("ChecklistItem")` and return a node reference for each ID. For bounded
+paging, use Viaduct OSS `@connection` and `@edge` schema types, then call
+`dbClient.fetchConnection(ctx, DbRead(DbRoot("checklistItemCollection")), ctx.selections())`.
+Paging arguments and cursors come exclusively from Viaduct.
 For delete and transaction examples, see the
-[pg-persistence README](https://github.com/viaduct-dev/pg-persistence/blob/feat/union-interface-support/README.md).
+[pg-persistence README](https://github.com/viaduct-dev/pg-persistence/blob/main/README.md).
 
 ## Keep authorization in the application
 

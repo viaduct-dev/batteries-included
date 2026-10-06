@@ -1,14 +1,20 @@
 pluginManagement {
     val viaductVersion: String by settings
-    val pgPersistenceVersion: String by settings
+    val pgPersistencePluginVersion: String by settings
 
     repositories {
         maven("https://central.sonatype.com/repository/maven-snapshots/")
         gradlePluginPortal()
     }
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "dev.viaduct.pg-persistence") {
+                useModule("dev.viaduct.persistence:plugin:$pgPersistencePluginVersion")
+            }
+        }
+    }
     plugins {
         id("com.airbnb.viaduct.settings-gradle-plugin") version viaductVersion
-        id("dev.viaduct.pg-persistence") version pgPersistenceVersion
     }
 }
 
@@ -25,7 +31,6 @@ dependencyResolutionManagement {
     }
     versionCatalogs {
         create("libs") {
-            // This injects a dynamic value that your TOML can reference.
             version("viaduct", viaductVersion)
         }
     }
