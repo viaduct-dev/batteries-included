@@ -10,7 +10,9 @@ database client.
 
 ## Configuration
 
-`backend/gradle.properties` pins both library versions. The build resolves the plugin and packaged
+`backend/gradle.properties` pins Viaduct `2.1.0-20260922.061944-33`, persistence runtime
+`0.1.0-20261005.223537-17`, and persistence plugin `0.1.0-20261005.223537-16`.
+The persistence artifacts were published from commit `963632e` on 2026-10-05. The build resolves the plugin and packaged
 runtime from Maven Central's snapshot repository. No `mavenLocal()` or persistence source checkout
 is needed.
 
@@ -61,10 +63,15 @@ A group hidden by RLS returns null from the nullable `group` query. Node lookup 
 node-resolver error behavior. Database-backed list relationships return node references; the
 corresponding node resolver fetches the selected fields.
 
-The `groups` query follows the library's database cursors. For plain node-list relationships
-such as `Group.members`, pg-persistence follows those cursors automatically; no membership field
-resolver is needed. These APIs load all accessible rows. Prefer a paginated connection for new,
-potentially large collections so callers can request a bounded page.
+The `groups` query uses authenticated `PgGraphqlClient.selectRecords` to load all
+accessible IDs. Provider continuation stays internal to the library. For plain
+node-list relationships such as `Group.members`, pg-persistence loads all matching
+nodes automatically; no membership field resolver is needed.
+
+For bounded paging, declare Viaduct OSS `@connection` and `@edge` types and use
+`DbClient.fetchConnection` with the generated resolver context. Viaduct owns
+argument validation, offset cursors, and PageInfo. There is no separate persistence
+page or cursor API.
 
 ## Verification
 

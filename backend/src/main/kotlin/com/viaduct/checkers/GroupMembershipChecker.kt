@@ -7,7 +7,7 @@ import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory
@@ -86,13 +86,13 @@ class GroupMembershipCheckerExecutorFactory(
 ) : CheckerExecutorFactory {
 
     override fun checkerExecutorForField(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         typeName: String,
         fieldName: String,
     ): CheckerExecutor? = null
 
     override fun checkerExecutorForType(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         typeName: String,
     ): CheckerExecutor? {
         if (typeName != "Group") return null

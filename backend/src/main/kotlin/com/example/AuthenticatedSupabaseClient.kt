@@ -25,6 +25,11 @@ class AuthenticatedSupabaseClient(
     private val client = PgGraphqlClient(httpClient, "$supabaseUrl/graphql/v1")
     private val headers = mapOf("Authorization" to "Bearer $accessToken", "apikey" to supabaseKey)
 
+    suspend fun selectNodeIds(type: String): List<String> =
+        client.selectRecords(
+            PgGraphqlEntity(type), "id: uuidId", StoredNodeId.serializer(), headers = headers,
+        ).map(StoredNodeId::id)
+
     suspend fun getGroupById(groupId: String): StoredNodeId? =
         client.selectRecords(
             group, "id: uuidId", StoredNodeId.serializer(),
@@ -39,7 +44,7 @@ class AuthenticatedSupabaseClient(
     suspend fun isGroupMember(groupId: String, userId: String): Boolean =
         client.selectRecords(
             member, "id: uuidId", StoredNodeId.serializer(),
-            filter = membership(groupId, userId), first = 1, headers = headers,
+            filter = membership(groupId, userId), headers = headers,
         ).isNotEmpty()
 
     suspend fun insertGroupMember(input: PgGraphqlObject): StoredNodeId =

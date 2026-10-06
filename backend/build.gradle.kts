@@ -1,3 +1,13 @@
+buildscript {
+    configurations.classpath {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "dev.viaduct.persistence" && requested.name == "runtime") {
+                useVersion(providers.gradleProperty("pgPersistenceVersion").get())
+            }
+        }
+    }
+}
+
 plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.ksp)
@@ -9,6 +19,22 @@ plugins {
 }
 
 val pgPersistenceVersion: String by project
+// Keep Viaduct plugins and libraries on the snapshot used by pg-persistence.
+configurations.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group.startsWith("com.airbnb.viaduct")) {
+            useVersion(
+                if (requested.group == "com.airbnb.viaduct.gradle" && requested.name == "metamodule") {
+                    "2.1.0-20260921.062359-3"
+                } else {
+                    libs.versions.viaduct.get()
+                },
+            )
+        } else if (requested.group == "dev.viaduct.persistence" && requested.name == "runtime") {
+            useVersion(pgPersistenceVersion)
+        }
+    }
+}
 
 dependencies {
     implementation("dev.viaduct.persistence:runtime:$pgPersistenceVersion")
