@@ -119,6 +119,14 @@ For delete and transaction examples, see the
 
 ## Keep authorization in the application
 
+Register access checks in `AccessCheckerExecutorFactory`, rather than repeating permission checks
+inside resolvers. The factory checks administrator access for `users`, `setUserAdmin`, and
+`deleteUser`, and delegates group type checks to the existing membership checker. Add a field
+checker for a protected mutation so Viaduct denies access before its resolver can write data;
+query checks can run alongside resolution and prevent denied values from being returned.
+Schema scopes control visibility, not runtime authorization. The authentication plugin verifies
+tokens with Supabase Auth before constructing the identity used by scopes and checkers.
+
 The existing group checker protects `Group`, not arbitrary new resource types. Add a checker
 for the new resource that obtains its `groupId` and verifies membership. Do not use the obsolete
 `@requiresGroupMembership` directive.

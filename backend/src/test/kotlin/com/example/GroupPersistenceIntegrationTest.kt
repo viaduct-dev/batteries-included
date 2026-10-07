@@ -6,7 +6,7 @@ import com.example.config.appModule
 import com.example.services.GroupService
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.viaduct.checkers.GroupMembershipCheckerExecutorFactory
+import com.viaduct.checkers.AccessCheckerExecutorFactory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.collections.shouldContain
@@ -221,7 +221,7 @@ internal class PersistenceFixture(extraModule: org.koin.core.module.Module? = nu
             SchemaScopeInfo.Scoped("default", setOf("default", "public")),
             SchemaScopeInfo.Scoped("admin", setOf("admin", "default", "public")),
         ))
-        .withCheckerExecutorFactoryCreator { GroupMembershipCheckerExecutorFactory(koin.get<GroupService>()) }
+        .withCheckerExecutorFactoryCreator { AccessCheckerExecutorFactory(koin.get<GroupService>()) }
         .build()
 
     suspend fun user(): AuthSessionResponse =
