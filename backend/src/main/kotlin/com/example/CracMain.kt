@@ -1,7 +1,7 @@
 package com.example
 
 import com.typesafe.config.ConfigFactory
-import com.viaduct.checkers.GroupMembershipCheckerExecutorFactory
+import com.viaduct.checkers.AccessCheckerExecutorFactory
 import com.example.config.DelegatingTenantCodeInjector
 import com.example.config.KoinTenantCodeInjector
 import com.example.config.appModule
@@ -94,7 +94,7 @@ fun main() {
         .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(cracInjector))
         .withScopedSchemas(scopes)
         .withCheckerExecutorFactoryCreator { _ ->
-            GroupMembershipCheckerExecutorFactory(groupService)
+            AccessCheckerExecutorFactory(groupService)
         }
         .build()
 

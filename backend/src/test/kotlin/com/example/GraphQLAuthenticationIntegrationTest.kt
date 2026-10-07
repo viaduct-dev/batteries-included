@@ -4,6 +4,8 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.example.config.DelegatingTenantCodeInjector
 import com.example.config.KoinTenantCodeInjector
 import com.example.config.appModule
+import com.example.services.GroupService
+import com.viaduct.checkers.AccessCheckerExecutorFactory
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
@@ -51,15 +53,16 @@ class GraphQLAuthenticationIntegrationTest : FunSpec({
         SchemaScopeInfo.Scoped("admin", setOf("default", "admin", "public")),
     )
 
-    val viaduct = ViaductBuilder()
-        .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(cracInjector))
-        .withScopedSchemas(scopes)
-        .build()
-
     val koin = koinApplication {
         slf4jLogger()
         modules(appModule(supabaseUrl, supabaseAnonKey))
     }.koin.also { cracInjector.delegate = KoinTenantCodeInjector(it) }
+
+    val viaduct = ViaductBuilder()
+        .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(cracInjector))
+        .withScopedSchemas(scopes)
+        .withCheckerExecutorFactoryCreator { AccessCheckerExecutorFactory(koin.get<GroupService>()) }
+        .build()
 
     // Create a Supabase client for test user authentication
     val supabaseClient = createSupabaseClient(
@@ -157,7 +160,22 @@ class GraphQLAuthenticationIntegrationTest : FunSpec({
 
             response.status shouldBe HttpStatusCode.Unauthorized
             val body = response.bodyAsText()
-            body shouldContain "JWT token"
+            body shouldContain "Invalid or expired token"
+        }
+    }
+
+    test("a well-formed but unsigned administrator token is rejected") {
+        val encode = java.util.Base64.getUrlEncoder().withoutPadding()
+        val header = encode.encodeToString("""{"alg":"none"}""".toByteArray())
+        val payload = encode.encodeToString("""{"sub":"forged-admin","app_metadata":{"is_admin":true}}""".toByteArray())
+        testWithApp {
+            val response = client.post("/graphql") {
+                contentType(ContentType.Application.Json)
+                bearerAuth("$header.$payload.invalid-signature")
+                setBody("""{"query":"{ users { id } }"}""")
+            }
+            (response.status to objectMapper.readTree(response.bodyAsText()).has("data")) shouldBe
+                (HttpStatusCode.Unauthorized to false)
         }
     }
 
