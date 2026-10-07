@@ -14,5 +14,5 @@ extend type Query @scope(to: ["admin"]) {
   """
   Get all users in the system. Only admins can view all users.
   """
-  users: [User!]! @resolver
+  users: [User!]! @resolver @requiresAdmin
 }

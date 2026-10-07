@@ -46,6 +46,16 @@ Services:
 
 ## Documentation
 
+Administrator-only fields and object types use `@requiresAdmin`, defined in
+`backend/src/main/viaduct/schemabase/Authorization.graphqls`. For example:
+
+```graphql
+deleteUser(input: DeleteUserInput!): Boolean! @resolver @requiresAdmin
+```
+
+Viaduct's checker enforces this using the verified request identity. Schema scopes
+control visibility, not authorization; Supabase policies and group checks remain in place.
+
 See [CLAUDE.md](./CLAUDE.md) for complete documentation including:
 - Development commands
 - Architecture details
@@ -58,4 +68,3 @@ See [CLAUDE.md](./CLAUDE.md) for complete documentation including:
 - **Render Frontend**: Free (static site)
 - **Render Backend**: Free (512MB RAM, spins down after inactivity)
   - Upgrade to Starter ($7/mo) for always-on
-

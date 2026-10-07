@@ -78,8 +78,8 @@ class GroupMembershipError(message: String) : CheckerResult.Error {
 /**
  * Factory that registers [GroupMembershipCheckerExecutor] for the Group type.
  *
- * In Viaduct 0.28+ custom schema directives are not allowed, so the set of protected
- * types is declared here in code rather than via a @requiresGroupMembership directive.
+ * Group protection is registered here. Applications can define custom directives in
+ * schemabase; tenant partitions can apply, but cannot define, those directives.
  */
 class GroupMembershipCheckerExecutorFactory(
     private val groupService: GroupService,

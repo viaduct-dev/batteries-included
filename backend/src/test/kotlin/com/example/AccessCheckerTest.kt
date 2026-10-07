@@ -5,6 +5,9 @@ import com.example.config.RequestContext
 import com.example.config.appModule
 import com.example.services.GroupService
 import com.viaduct.checkers.AccessCheckerExecutorFactory
+import graphql.schema.idl.RuntimeWiring
+import graphql.schema.idl.SchemaGenerator
+import graphql.schema.idl.SchemaParser
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.http.ContentType
@@ -18,6 +21,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.koin.dsl.koinApplication
 import viaduct.service.SchemaScopeInfo
+import viaduct.engine.api.EngineSchema
 import viaduct.service.ViaductBuilder
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
@@ -38,6 +42,23 @@ class AccessCheckerTest {
     fun close() {
         application.koin.getOrNull<HttpClient>()?.close()
         application.close()
+    }
+
+    @Test
+    fun `directives protect arbitrary field and object names without affecting unmarked fields`() {
+        val schema = EngineSchema(SchemaGenerator().makeExecutableSchema(SchemaParser().parse("""
+            directive @requiresAdmin on FIELD_DEFINITION | OBJECT
+            type Query { renamed: String @requiresAdmin users: String }
+            type Protected @requiresAdmin { value: String }
+            type Ordinary { value: String }
+        """), RuntimeWiring.newRuntimeWiring().build()))
+        val factory = AccessCheckerExecutorFactory(application.koin.get<GroupService>())
+        listOf(
+            factory.checkerExecutorForField(schema, "Query", "renamed") != null,
+            factory.checkerExecutorForField(schema, "Query", "users") != null,
+            factory.checkerExecutorForType(schema, "Protected") != null,
+            factory.checkerExecutorForType(schema, "Ordinary") != null,
+        ) shouldBe listOf(true, false, true, false)
     }
 
     @Test

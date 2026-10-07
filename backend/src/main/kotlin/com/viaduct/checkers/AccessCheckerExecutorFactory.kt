@@ -11,16 +11,19 @@ import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory
 
 /** Runtime authorization complements schema visibility and Supabase policies. */
-class AccessCheckerExecutorFactory(groupService: GroupService) :
-    CheckerExecutorFactory by GroupMembershipCheckerExecutorFactory(groupService) {
+class AccessCheckerExecutorFactory(groupService: GroupService) : CheckerExecutorFactory {
+    private val groupChecker = GroupMembershipCheckerExecutorFactory(groupService)
+
     override fun checkerExecutorForField(
         schema: EngineSchema,
         typeName: String,
         fieldName: String,
-    ): CheckerExecutor? = when (typeName to fieldName) {
-        "Query" to "users", "Mutation" to "setUserAdmin", "Mutation" to "deleteUser" -> AdminChecker
-        else -> null
-    }
+    ): CheckerExecutor? = schema.schema.getObjectType(typeName)?.getFieldDefinition(fieldName)
+        ?.takeIf { it.hasAppliedDirective("requiresAdmin") }?.let { AdminChecker }
+
+    override fun checkerExecutorForType(schema: EngineSchema, typeName: String): CheckerExecutor? =
+        if (schema.schema.getObjectType(typeName)?.hasAppliedDirective("requiresAdmin") == true) AdminChecker
+        else groupChecker.checkerExecutorForType(schema, typeName)
 }
 
 private object AdminChecker : CheckerExecutor {

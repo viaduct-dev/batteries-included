@@ -1,0 +1,2 @@
+"""Require a verified administrator, independently of schema visibility."""
+directive @requiresAdmin on FIELD_DEFINITION | OBJECT

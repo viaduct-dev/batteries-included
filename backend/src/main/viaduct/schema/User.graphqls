@@ -42,10 +42,10 @@ extend type Mutation @scope(to: ["admin"]) {
   """
   Set a user's admin status. Only admins can set admin status.
   """
-  setUserAdmin(input: SetUserAdminInput!): Boolean! @resolver
+  setUserAdmin(input: SetUserAdminInput!): Boolean! @resolver @requiresAdmin
 
   """
   Delete a user from the system. Only admins can delete users.
   """
-  deleteUser(input: DeleteUserInput!): Boolean! @resolver
+  deleteUser(input: DeleteUserInput!): Boolean! @resolver @requiresAdmin
 }
